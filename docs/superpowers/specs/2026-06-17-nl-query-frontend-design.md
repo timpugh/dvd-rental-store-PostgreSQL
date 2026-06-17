@@ -20,6 +20,7 @@ clickable example prompts that together exercise every kind of data in the datab
 | LLM | Amazon Bedrock, `anthropic.claude-haiku-4-5` (configurable) |
 | Show generated SQL | Yes — between the request and the results |
 | Backend shape | Orchestrator Lambda **outside** the VPC, reusing the existing in-VPC `query` Lambda for DB access (no new VPC endpoint) |
+| JSONB tables | Populate them too, so examples can cover JSONB. The seeder becomes a **Lambda container image** carrying `pg_restore` and loads the custom-format archives natively |
 
 ## Architecture
 
@@ -67,8 +68,9 @@ Results panel layout (top to bottom):
   (temperature 0 for SQL, ~0.3 for the explanation; `maxTokens` modest).
 - Bundles a **curated Pagila schema summary** (core tables, key columns, FK
   relationships, the `mpaa_rating` enum, the `fulltext` tsvector column, and a note
-  that `payment` is partitioned) as the Bedrock *system* prompt so generated SQL is
-  accurate. This is a hand-written ~150-line reference, not the full pg_dump.
+  that `payment` is partitioned, plus the two JSONB tables and their `aptdata` /
+  `yumdata` shape) as the Bedrock *system* prompt so generated SQL is accurate.
+  This is a hand-written ~150-line reference, not the full pg_dump.
 - Invokes the existing `query` Lambda via `LambdaClient` `InvokeCommand`
   (`RequestResponse`) with payload `{ body: JSON.stringify({ query: sql }) }`,
   matching the query handler's existing event shape; parses its
@@ -96,6 +98,30 @@ Results panel layout (top to bottom):
   model access in the console.
 - **Outputs**: `SiteURL` (CloudFront), `AskEndpoint`.
 
+### 4. Seeder change — load the JSONB tables (container image)
+
+The JSONB sample data ships only as `pg_restore` custom-format archives
+(`pagila-data-apt-jsonb.backup` 7.2 MB, `pagila-data-yum-jsonb.backup` 4.7 MB).
+A plain `pg` client can't apply them, and converted to plain SQL they are ~98 MB
+(46 MB + 52 MB, COPY-format `FROM stdin`) — too large to bundle in a Lambda zip.
+
+So the existing esbuild-zip seeder is replaced by a **Lambda container image**
+(10 GB limit) that:
+
+- bundles the PostgreSQL client (`psql`, `pg_restore`) and the seed files
+  (`pagila-schema.sql`, `pagila-schema-jsonb.sql`, `pagila-data.sql`, and the two
+  `.backup` archives);
+- on invoke (still the CloudFormation custom resource, in the VPC), reads the
+  secret from Secrets Manager and runs native tooling against Aurora:
+  `psql -f` for the schema and the COPY-based relational data, then
+  `pg_restore --no-owner --data-only` for each JSONB archive;
+- stays **idempotent**: skip the relational load if `film` already has rows; skip
+  each JSONB load if its table already has rows.
+
+This natively handles the custom-format archives (no binary→SQL conversion), uses
+the authentic COPY-based `pagila-data.sql`, and removes the package-size limit.
+The query and ask Lambdas are unaffected — only the one-time seeder changes.
+
 ## Example prompts (every kind of data)
 
 Each example chip shows the question **and** a small tag naming the data it
@@ -118,17 +144,16 @@ searches (the annotation the user asked to keep). Coverage:
 | 13 | How many rentals happened per month? | rental.rental_date (date/time series) |
 | 14 | Average rental rate and replacement cost by rating | film (numeric aggregates) |
 | 15 | Show 10 rows from the film_list view | film_list (view) |
+| 16 | How many apt packages are recorded, and list 5 of their names? | packages_apt_postgresql_org (jsonb) |
+| 17 | Show the 5 most recently updated yum packages | packages_yum_postgresql_org (jsonb) |
 
 This spans every populated table (actor, film, film_actor, category,
 film_category, language, inventory, rental, payment, customer, address, city,
 country, store, staff) and every special type/feature in the dataset: the
 `mpaa_rating` enum, full-text search, timestamps/date series, numeric/money,
-boolean flags, and a built-in view.
-
-**Coverage note:** the JSONB tables (`packages_apt_postgresql_org`,
-`packages_yum_postgresql_org`) exist but are **not populated** by the seeder
-(their data ships only as `pg_restore` backups), so no example targets them — a
-query there would return zero rows. This is called out in the spec, not hidden.
+boolean flags, a built-in view, and — once the seeder change below lands — the two
+**JSONB** tables (examples 16–17), so every kind of data in the database has a
+ready example to test with.
 
 ## Read-only safety
 
@@ -168,7 +193,6 @@ warmup mechanism for a training tool.)
 - Authentication on `/ask` (open, like `/query` — a training sandbox; noted as a
   hardening item, not built here).
 - Write/DDL queries (read-only by design).
-- Loading the JSONB sample data.
 - Streaming responses / conversation history (single request/response).
 
 ## File structure
@@ -181,7 +205,10 @@ frontend/
 infrastructure/cdk/
   lambda/ask-handler.ts          (new)
   lambda/pagila-schema-context.ts (new — curated schema string for the prompt)
-  lib/pagila-stack.ts            (modified — ask Lambda, /ask route, S3+CloudFront)
+  seeder/Dockerfile              (new — postgres client + seed files; container seeder)
+  seeder/handler.py              (new — runs psql / pg_restore against Aurora)
+  lib/pagila-stack.ts            (modified — ask Lambda, /ask route, S3+CloudFront,
+                                  seeder switched to DockerImageFunction)
 tests/
   ask-smoke-test.py              (new)
 ```
