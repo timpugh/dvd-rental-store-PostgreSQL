@@ -1,6 +1,12 @@
 -- Pagila Database Test Suite
--- Run after database initialization to validate schema and data
--- Usage: psql -h $DB_HOST -U postgres -d pagila -f tests/test-queries.sql
+--
+-- NOTE: In this deployment the database is PRIVATE (web-only) - you cannot run
+-- this file with `psql -f` from a laptop. It is kept as a library of example
+-- queries. Run individual SELECTs through the API, e.g.:
+--   ./scripts/query-api.sh "SELECT count(*) FROM film;"
+-- For an automated check, use tests/integration-test.py (hits the API).
+-- The \echo lines below are psql meta-commands and only work if you have an
+-- in-VPC psql session (e.g. a bastion).
 
 \echo '======================================================================'
 \echo 'PAGILA DATABASE VALIDATION TEST SUITE'

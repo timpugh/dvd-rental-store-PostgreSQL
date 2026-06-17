@@ -1,312 +1,112 @@
-# Pagila - AWS Serverless Training Edition
+# Pagila — AWS Serverless Training Edition
 
-🚀 **This repository now includes a complete serverless PostgreSQL training environment on AWS!**
+A serverless deployment of the **Pagila** sample database (a DVD‑rental store
+schema) for practicing PostgreSQL on AWS at minimal cost.
 
-## Quick Start (AWS Serverless Deployment)
-
-Deploy Pagila to AWS with serverless technologies for just **$1-2/month**:
-
-```bash
-# 1. Setup AWS (see infrastructure/aws-setup-guide.md)
-# 2. Deploy infrastructure
-cd infrastructure/cdk
-npm install && npm run build && cdk deploy
-
-# 3. Initialize database
-python3 scripts/init-database.py
-
-# 4. Start training
-./scripts/connect-db.sh
-```
-
-**📚 Learn More:**
-- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Complete overview & deployment status
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment
-- **[USAGE_GUIDE.md](USAGE_GUIDE.md)** - Complete usage guide with examples
-- **[COST_TRACKING.md](COST_TRACKING.md)** - Cost monitoring and optimization
-- **[infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md)** - AWS account setup
-
-### Architecture
+## Architecture (private / web‑only)
 
 ![AWS Serverless Pagila Architecture Diagram](docs/pagila-serverless-architecture.png)
 
-**Architecture Components:**
-- **Database:** Aurora PostgreSQL Serverless v2 (auto-pauses, saves 95% cost)
-- **API:** Lambda + API Gateway for web-based queries
-- **Infrastructure:** TypeScript AWS CDK (version-controlled, reproducible)
-- **Cost:** ~$1-2/month for sporadic training use
-- **Status:** ✅ Production-ready, fully tested, comprehensive documentation
+- **Database:** Aurora PostgreSQL **Serverless v2** with scale‑to‑zero (auto‑pauses when idle), **private** — no public endpoint.
+- **Access:** **API Gateway → Lambda** only. You send SQL to an HTTPS endpoint; the Lambda runs it inside the VPC and returns JSON. There is **no direct psql** from a laptop (the DB is private by design).
+- **Credentials:** generated and stored in **Secrets Manager**; the Lambda reads them through a single‑AZ interface VPC endpoint (no NAT gateway).
+- **Seeding:** a one‑time **seeder Lambda** (CloudFormation custom resource) loads the schema + sample data on deploy — nothing to run by hand.
+- **IaC:** AWS CDK (TypeScript) in [infrastructure/cdk/](infrastructure/cdk/).
 
-**Data Flow:**
-1. Client sends SQL query via API Gateway (or direct psql)
-2. API Gateway invokes Lambda function
-3. Lambda retrieves credentials from Secrets Manager
-4. Lambda executes query against Aurora PostgreSQL
-5. Results returned to client as JSON
+**Request flow:** `POST /query` → Lambda → (read secret via endpoint) → run SQL on Aurora → rows back as JSON.
 
----
+## Quick start
 
-## About Pagila
+Prereqs: an AWS account, AWS CLI configured, Node.js 18+, and the AWS CDK
+(`npx cdk`). See [infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md).
 
-Pagila started as a port of the [Sakila](https://dev.mysql.com/doc/sakila/en/) example database available for MySQL, which was
-originally developed by Mike Hillyer of the MySQL AB documentation team. It
-is intended to provide a standard schema that can be used for examples in
-books, tutorials, articles, samples, etc.
+```bash
+cd infrastructure/cdk
+npm install
+npx cdk bootstrap            # first time in the account/region only
+npx cdk deploy               # creates everything AND seeds the database
+```
 
-Pagila has been tested against PostgreSQL 12 and above.
+When it finishes, copy the **`APIEndpoint`** output into a `.env` file, then query:
 
-All the tables, data, views, and functions have been ported; some of the
-changes made were:
+```bash
+cp .env.example .env         # set API_ENDPOINT to the APIEndpoint output
+./scripts/query-api.sh "SELECT count(*) FROM film;"
+```
 
-- Changed char(1) true/false fields to true boolean fields
-- The last_update columns were set with triggers to update them
-- Added foreign keys
-- Removed 'DEFAULT 0' on foreign keys since it's pointless with real FK's
-- Used PostgreSQL built-in fulltext searching for fulltext index.
-  Removed the need for the film_text table.
-- The rewards_report function was ported to a simple SRF
-- Added JSONB data
+Or call it directly:
 
-The pagila database is made available under PostgreSQL license.
+```bash
+curl -sS -X POST "$API_ENDPOINT/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"SELECT title, rental_rate FROM film LIMIT 5;"}' | jq
+```
 
-## EXAMPLE QUERY
+Smoke‑test the deployment:
+
+```bash
+API_ENDPOINT=<your APIEndpoint> python3 tests/integration-test.py
+```
+
+Tear everything down (stops all charges):
+
+```bash
+cd infrastructure/cdk && npx cdk destroy
+```
+
+More detail in [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) and
+[USAGE_GUIDE.md](USAGE_GUIDE.md).
+
+> **Note on the JSONB sample data:** the relational Pagila data is loaded
+> automatically. The JSONB extras ship as `pg_restore` custom‑format backups
+> (`pagila-data-*-jsonb.backup`), which the seeder does not apply — those two
+> `jsonb` tables are created but left empty.
+
+## Example query
 
 Find late rentals:
 
 ```sql
-SELECT
-	CONCAT(customer.last_name, ', ', customer.first_name) AS customer,
-	address.phone,
-	film.title
-FROM
-	rental
-	INNER JOIN customer ON rental.customer_id = customer.customer_id
-	INNER JOIN address ON customer.address_id = address.address_id
-	INNER JOIN inventory ON rental.inventory_id = inventory.inventory_id
-	INNER JOIN film ON inventory.film_id = film.film_id
-WHERE
-	rental.return_date IS NULL
-	AND rental_date < CURRENT_DATE
-ORDER BY
-	title
+SELECT CONCAT(customer.last_name, ', ', customer.first_name) AS customer,
+       address.phone, film.title
+FROM rental
+  INNER JOIN customer  ON rental.customer_id   = customer.customer_id
+  INNER JOIN address   ON customer.address_id  = address.address_id
+  INNER JOIN inventory ON rental.inventory_id  = inventory.inventory_id
+  INNER JOIN film      ON inventory.film_id    = film.film_id
+WHERE rental.return_date IS NULL
+  AND rental_date < CURRENT_DATE
+ORDER BY title
 LIMIT 5;
 ```
 
-## FULLTEXT SEARCH
+Full‑text search is built in (no `film_text` table needed):
 
-Fulltext functionality is built in PostgreSQL, so parts of the schema exist
-in the main schema file.
-
-Example usage:
-
-SELECT * FROM film WHERE fulltext @@ to_tsquery('fate&india');
-
-pgAdmin is included in the docker-compose.
-
-Navigate to the URL : http://localhost:5050/
-Default Username: admin@admin.com
-Default Password: root
-
-## PARTITIONED TABLES
-
-The payment table is designed as a partitioned table with a 7 month timespan
-for the date ranges.
-
-## INSTALL NOTE
-
-The pagila-data.sql file and the pagila-insert-data.sql both contain the same
-data, the former using COPY commands, the latter using INSERT commands, so you
-only need to install one of them. Both formats are provided for those who have
-trouble using one version or another, and for instructors who want to point out
-the longer data loading time with the latter. You can load them via psql, pgAdmin, etc.
-
-Since JSONB data is quite large to store on Github, the backup is not a plain SQL
-file. You can still use psql/pgAdmin, etc. to load `pagila-schema-jsonb.backup`, however
-please use pg_restore to load jsonb data files:
-
-```
-pg_restore /usr/share/pagila/pagila-data-yum-jsonb.backup -U postgres -d pagila
-pg_restore /usr/share/pagila/pagila-data-apt-jsonb.backup -U postgres -d pagila
+```sql
+SELECT * FROM film WHERE fulltext @@ to_tsquery('fate & india');
 ```
 
-## VERSION HISTORY
+## About Pagila
 
-Version 3.0.0
+Pagila is a port of the [Sakila](https://dev.mysql.com/doc/sakila/en/) example
+database (originally by Mike Hillyer of the MySQL AB documentation team),
+intended as a standard schema for examples, tutorials, and articles. It targets
+PostgreSQL 12+. Notable differences from Sakila:
 
-- Add JSONB sample data (based on the packages at apt.postgresql.org and yum.postgresql.org)
-- Add docker compose support ( contributed by https://github.com/theothermattm ) https://github.com/devrimgunduz/pagila/pull/16
-- Add steps to create pagila database on docker by @dedeco in https://github.com/devrimgunduz/pagila/pull/13
-- Add missing user argument by @zOxta in https://github.com/devrimgunduz/pagila/pull/14
-- Update dates to 2022
-- Fix various issues reported in Github
+- `char(1)` true/false fields became real booleans
+- `last_update` columns are maintained by triggers
+- foreign keys added (and pointless `DEFAULT 0` on FKs removed)
+- PostgreSQL built‑in full‑text search (no `film_text` table)
+- `rewards_report` ported to a simple set‑returning function
+- JSONB sample data added
 
-Version 2.1.0
+The `payment` table is partitioned by month. Pagila is made available under the
+PostgreSQL license.
 
-- Replace varchar(n) with text (David Fetter)
-- Match foreign key and primary key data type in some tables (Ganeshan Venkataraman)
-- Change CREATE TABLE statement for customer table to use
-  DEFAULT nextval('customer_customer_id_seq'::regclass) for customer_id
-  field instead of SERIAL (Adrian Klaver).
+## Data files
 
-Version 2.0
-
-- Update schema for newer PostgreSQL versions
-- Remove RULE for partitioning, add trigger support.
-- Update years in sample data.
-- Remove ARTICLES section from README, all links are dead.
-
-Version 0.10.1
-
-- Add pagila-data-insert.sql file, added articles section
-
-Version 0.10
-
-- Support for built-in fulltext. Add enum example
-
-Version 0.9
-
-- Add table partitioning example
-
-Version 0.8
-
-- First release of pagila
-
-## CREATE DATABASE ON [DOCKER](https://docs.docker.com/)
-
-1. On terminal pull the latest postgres image:
-
-```
- docker pull postgres
-```
-
-2. Run image:
-
-```
- docker run --name postgres -e POSTGRES_PASSWORD=secret -d postgres
-```
-
-3. Run postgres and create the database:
-
-```
-docker exec -it postgres psql -U postgres
-```
-
-```
-psql (13.1 (Debian 13.1-1.pgdg100+1))
-Type "help" for help.
-
-postgres=# CREATE DATABASE pagila;
-postgres-# CREATE DATABASE
-postgres=\q
-```
-
-4. Create all schema objetcs (tables, etc) replace `<local-repo>` by your local directory :
-
-```
-cat <local-repo>/pagila-schema.sql | docker exec -i postgres psql -U postgres -d pagila
-```
-
-5. Insert all data:
-
-```
-cat <local-repo>/pagila-data.sql | docker exec -i postgres psql -U postgres -d pagila
-```
-
-6. Done! Just use:
-
-```
-docker exec -it postgres psql -U postgres
-```
-
-````
-postgres
-psql (13.1 (Debian 13.1-1.pgdg100+1))
-Type "help" for help.
-
-postgres=# \c pagila
-You are now connected to database "pagila" as user "postgres".
-pagila=# \dt
-                    List of relations
- Schema |       Name       |       Type        |  Owner
---------+------------------+-------------------+----------
- public | actor            | table             | postgres
- public | address          | table             | postgres
- public | category         | table             | postgres
- public | city             | table             | postgres
- public | country          | table             | postgres
- public | customer         | table             | postgres
- public | film             | table             | postgres
- public | film_actor       | table             | postgres
- public | film_category    | table             | postgres
- public | inventory        | table             | postgres
- public | language         | table             | postgres
- public | payment          | partitioned table | postgres
- public | payment_p2022_01 | table             | postgres
- public | payment_p2022_02 | table             | postgres
- public | payment_p2022_03 | table             | postgres
- public | payment_p2022_04 | table             | postgres
- public | payment_p2022_05 | table             | postgres
- public | payment_p2022_06 | table             | postgres
- public | payment_p2022_07 | table             | postgres
- public | rental           | table             | postgres
- public | staff            | table             | postgres
- public | store            | table             | postgres
-(21 rows)
-
-pagila=#
-```
-````
-
-## CREATE DATABASE ON [DOCKER-COMPOSE](https://docs.docker.com/compose/)
-
-1. Run:
-
-```
-docker-compose up
-```
-
-2. Done! Just use:
-
-```
-docker exec -it pagila psql -U postgres
-```
-
-```
-
-postgres
-psql (13.1 (Debian 13.1-1.pgdg100+1))
-Type "help" for help.
-
-postgres=# \c pagila
-You are now connected to database "pagila" as user "postgres".
-pagila=# \dt
-                    List of relations
- Schema |       Name       |       Type        |  Owner
---------+------------------+-------------------+----------
- public | actor            | table             | postgres
- public | address          | table             | postgres
- public | category         | table             | postgres
- public | city             | table             | postgres
- public | country          | table             | postgres
- public | customer         | table             | postgres
- public | film             | table             | postgres
- public | film_actor       | table             | postgres
- public | film_category    | table             | postgres
- public | inventory        | table             | postgres
- public | language         | table             | postgres
- public | payment          | partitioned table | postgres
- public | payment_p2022_01 | table             | postgres
- public | payment_p2022_02 | table             | postgres
- public | payment_p2022_03 | table             | postgres
- public | payment_p2022_04 | table             | postgres
- public | payment_p2022_05 | table             | postgres
- public | payment_p2022_06 | table             | postgres
- public | payment_p2022_07 | table             | postgres
- public | rental           | table             | postgres
- public | staff            | table             | postgres
- public | store            | table             | postgres
-(21 rows)
-
-pagila=#
-
-```
+- `pagila-schema.sql` — schema (tables, views, functions, triggers)
+- `pagila-schema-jsonb.sql` — the two JSONB tables
+- `pagila-insert-data.sql` — sample data as `INSERT`s (used by the seeder Lambda)
+- `pagila-data.sql` — same data using `COPY` (kept for reference / `psql` use)
+- `pagila-data-*-jsonb.backup` — JSONB data for `pg_restore` (not auto‑loaded)

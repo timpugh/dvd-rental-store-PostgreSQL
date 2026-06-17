@@ -32,7 +32,9 @@ Before deploying the infrastructure, you need to:
 4. Enter billing address and payment method
    - AWS requires a valid credit card, even for free tier
    - You will NOT be charged for qualifying free-tier services
-   - Aurora Serverless v2 is NOT free tier, but costs ~$1-2/month for sporadic use
+   - Aurora Serverless v2 is NOT free tier. It auto-pauses when idle, but the
+     single-AZ Secrets Manager interface endpoint runs 24/7 (~$7/month). Run
+     `cdk destroy` between sessions to avoid ongoing charges.
 
 ### 1.3 Verify Identity
 
