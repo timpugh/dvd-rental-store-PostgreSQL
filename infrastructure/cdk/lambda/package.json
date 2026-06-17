@@ -1,0 +1,20 @@
+{
+  "name": "pagila-query-handler",
+  "version": "1.0.0",
+  "description": "Lambda function for Pagila query execution",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -f index.js index.js.map"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.457.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.24",
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.10.7",
+    "typescript": "~5.3.3"
+  }
+}

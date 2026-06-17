@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm -v docker-compose.yml pgadmin/ LICENSE.txt restore-pagila-data-jsonb.sh)"
+      "Bash(rm -v docker-compose.yml pgadmin/ LICENSE.txt restore-pagila-data-jsonb.sh)",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL"

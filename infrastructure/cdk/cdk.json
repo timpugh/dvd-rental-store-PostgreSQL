@@ -1,0 +1,25 @@
+{
+  "app": "npx ts-node bin/pagila.ts",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "dist",
+      "build",
+      "*.d.ts",
+      "node_modules",
+      "**/*.js",
+      "**/*.ts.bak"
+    ]
+  },
+  "context": {
+    "vpcCidr": "10.0.0.0/16",
+    "subnetCidrMask": 24,
+    "dbMinCapacity": 0.5,
+    "dbMaxCapacity": 2,
+    "environment": "training"
+  }
+}

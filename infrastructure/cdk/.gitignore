@@ -1,0 +1,33 @@
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+
+# TypeScript
+*.js
+*.d.ts
+dist/
+build/
+*.js.map
+
+# CDK
+cdk.out/
+.cdk.staging/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.log
+npm-debug.log*

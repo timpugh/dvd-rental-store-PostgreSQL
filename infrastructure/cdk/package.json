@@ -1,0 +1,38 @@
+{
+  "name": "pagila-cdk",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for Pagila PostgreSQL training database",
+  "main": "lib/pagila-stack.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "destroy": "cdk destroy",
+    "diff": "cdk diff",
+    "ls": "cdk ls"
+  },
+  "keywords": [
+    "pagila",
+    "postgres",
+    "aurora",
+    "serverless",
+    "cdk"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.20.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.3.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1070.0",
+    "aws-cdk-lib": "^2.130.0",
+    "constructs": "^10.3.0",
+    "pg": "^8.11.3",
+    "source-map-support": "^0.5.21"
+  }
+}
