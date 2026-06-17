@@ -27,11 +27,22 @@ python3 scripts/init-database.py
 - **[infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md)** - AWS account setup
 
 ### Architecture
+
+![AWS Serverless Pagila Architecture Diagram](docs/pagila-serverless-architecture.png)
+
+**Architecture Components:**
 - **Database:** Aurora PostgreSQL Serverless v2 (auto-pauses, saves 95% cost)
 - **API:** Lambda + API Gateway for web-based queries
 - **Infrastructure:** TypeScript AWS CDK (version-controlled, reproducible)
 - **Cost:** ~$1-2/month for sporadic training use
 - **Status:** ✅ Production-ready, fully tested, comprehensive documentation
+
+**Data Flow:**
+1. Client sends SQL query via API Gateway (or direct psql)
+2. API Gateway invokes Lambda function
+3. Lambda retrieves credentials from Secrets Manager
+4. Lambda executes query against Aurora PostgreSQL
+5. Results returned to client as JSON
 
 ---
 
