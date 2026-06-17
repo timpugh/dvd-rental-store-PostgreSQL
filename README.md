@@ -1,4 +1,41 @@
-# Pagila
+# Pagila - AWS Serverless Training Edition
+
+🚀 **This repository now includes a complete serverless PostgreSQL training environment on AWS!**
+
+## Quick Start (AWS Serverless Deployment)
+
+Deploy Pagila to AWS with serverless technologies for just **$1-2/month**:
+
+```bash
+# 1. Setup AWS (see infrastructure/aws-setup-guide.md)
+# 2. Deploy infrastructure
+cd infrastructure/cdk
+npm install && npm run build && cdk deploy
+
+# 3. Initialize database
+python3 scripts/init-database.py
+
+# 4. Start training
+./scripts/connect-db.sh
+```
+
+**📚 Learn More:**
+- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Complete overview & deployment status
+- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment
+- **[USAGE_GUIDE.md](USAGE_GUIDE.md)** - Complete usage guide with examples
+- **[COST_TRACKING.md](COST_TRACKING.md)** - Cost monitoring and optimization
+- **[infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md)** - AWS account setup
+
+### Architecture
+- **Database:** Aurora PostgreSQL Serverless v2 (auto-pauses, saves 95% cost)
+- **API:** Lambda + API Gateway for web-based queries
+- **Infrastructure:** TypeScript AWS CDK (version-controlled, reproducible)
+- **Cost:** ~$1-2/month for sporadic training use
+- **Status:** ✅ Production-ready, fully tested, comprehensive documentation
+
+---
+
+## About Pagila
 
 Pagila started as a port of the [Sakila](https://dev.mysql.com/doc/sakila/en/) example database available for MySQL, which was
 originally developed by Mike Hillyer of the MySQL AB documentation team. It

@@ -2,7 +2,27 @@
   "permissions": {
     "allow": [
       "Bash(rm -v docker-compose.yml pgadmin/ LICENSE.txt restore-pagila-data-jsonb.sh)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(chmod +x /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/init-database.py)",
+      "Bash(python3 scripts/init-database.py)",
+      "Bash(DB_HOST=test.example.com python3 scripts/init-database.py)",
+      "Bash(python3 -m py_compile /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/init-database.py)",
+      "Bash(chmod +x /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/connect-db.sh /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/query-api.sh)",
+      "Bash(/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/connect-db.sh --help)",
+      "Bash(/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/query-api.sh --help)",
+      "Bash(/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/connect-db.sh)",
+      "Bash(/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/scripts/query-api.sh)",
+      "Bash(chmod +x /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/tests/integration-test.py)",
+      "Bash(python3 -m py_compile /Users/timpugh/Desktop/dvd-rental-store-PostgreSQL/tests/integration-test.py)",
+      "Bash(awk '{print \" Size:\", $5}')",
+      "Bash(awk '{print \"  \" $NF}')",
+      "Bash(awk '{print \"  ✓ Contains \" $1 \" test categories\"}')",
+      "Bash(awk '{print \"aws-setup-guide.md: \" $1}')",
+      "Bash(awk '{print \"USAGE_GUIDE.md: \" $1}')",
+      "Bash(awk '{print \"DEPLOYMENT_CHECKLIST.md: \" $1}')",
+      "Bash(awk '{print \"COST_TRACKING.md: \" $1}')",
+      "Bash(xargs cat)",
+      "Bash(xargs ls -la)"
     ],
     "additionalDirectories": [
       "/Users/timpugh/Desktop/dvd-rental-store-PostgreSQL"
