@@ -103,14 +103,18 @@ export class PagilaStack extends cdk.Stack {
       'HTTPS from the query Lambda'
     );
 
+    // Single AZ for everything in the data path. Aurora's subnet group still
+    // spans both isolated subnets (RDS requires >=2 AZs), but the endpoint and
+    // both Lambdas are pinned to ONE subnet/AZ so there is no cross-AZ traffic
+    // (and the endpoint only bills for one AZ).
+    const singleAzSubnets: ec2.SubnetSelection = { subnets: [vpc.isolatedSubnets[0]] };
+
     // Interface endpoint so the in-VPC Lambda can call Secrets Manager (no NAT).
-    // Pinned to a single AZ to halve the hourly endpoint cost; Lambdas in the
-    // other AZ reach it cross-AZ (negligible data charge).
     const secretsEndpoint = vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
       service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
       securityGroups: [endpointSecurityGroup],
       privateDnsEnabled: true,
-      subnets: { subnets: [vpc.isolatedSubnets[0]] },
+      subnets: singleAzSubnets,
     });
 
     // ========================================
@@ -156,7 +160,7 @@ export class PagilaStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(60), // allow for first-query Aurora resume from pause
       memorySize: 256,
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpcSubnets: singleAzSubnets,
       securityGroups: [lambdaSecurityGroup],
       environment: {
         DB_SECRET_NAME: dbSecret.secretArn,
@@ -194,7 +198,7 @@ export class PagilaStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(15),
       memorySize: 1024, // headroom for the ~5 MB INSERT data file
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpcSubnets: singleAzSubnets,
       securityGroups: [lambdaSecurityGroup],
       environment: {
         DB_SECRET_NAME: dbSecret.secretArn,
