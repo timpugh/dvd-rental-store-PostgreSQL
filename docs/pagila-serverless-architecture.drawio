@@ -54,6 +54,11 @@
           <mxGeometry x="720" y="706" width="46" height="46" as="geometry" />
         </mxCell>
 
+        <!-- Seeder Lambda (deploy-time) -->
+        <mxCell id="seeder" value="Seeder Lambda&#10;one-time · on deploy" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="1110" y="300" width="46" height="46" as="geometry" />
+        </mxCell>
+
         <!-- edges -->
         <mxCell id="e1" value="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="client-box" target="apigw" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -73,9 +78,12 @@
         <mxCell id="e5" value="5 · rows (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#7C8A99;strokeColor=#9AA7B4;strokeWidth=1.5;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.75;entryX=1;entryY=0.7;" parent="1" source="aurora" target="lambda" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="eseed" value="load schema + data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#147E84;strokeColor=#147E84;strokeWidth=2;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" parent="1" source="seeder" target="aurora" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
 
-        <mxCell id="legend" value="Request flow&#10;&#10;1 · POST /query (HTTPS)&#10;2 · Invoke Lambda (in VPC)&#10;3 · Read secret via endpoint&#10;4 · Run SQL on Aurora&#10;5 · Return rows (JSON)&#10;&#10;Web-only: Aurora is private (no direct&#10;psql) · No NAT · 1 interface endpoint&#10;Aurora auto-pauses when idle" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;strokeColor=#D6DBE0;fillColor=#FAFAFA;fontColor=#39485A;" parent="1" vertex="1">
-          <mxGeometry x="36" y="524" width="216" height="250" as="geometry" />
+        <mxCell id="legend" value="Request flow&#10;&#10;1 · POST /query (HTTPS)&#10;2 · Invoke Lambda (in VPC)&#10;3 · Read secret via endpoint&#10;4 · Run SQL on Aurora&#10;5 · Return rows (JSON)&#10;&#10;Web-only: Aurora is private (no psql)&#10;No NAT · 1 endpoint (single AZ)&#10;Seeder loads data on deploy&#10;Aurora auto-pauses when idle" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;strokeColor=#D6DBE0;fillColor=#FAFAFA;fontColor=#39485A;" parent="1" vertex="1">
+          <mxGeometry x="36" y="524" width="216" height="262" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

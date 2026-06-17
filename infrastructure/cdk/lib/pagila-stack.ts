@@ -5,6 +5,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as cr from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -103,10 +104,13 @@ export class PagilaStack extends cdk.Stack {
     );
 
     // Interface endpoint so the in-VPC Lambda can call Secrets Manager (no NAT).
-    vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+    // Pinned to a single AZ to halve the hourly endpoint cost; Lambdas in the
+    // other AZ reach it cross-AZ (negligible data charge).
+    const secretsEndpoint = vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
       service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
       securityGroups: [endpointSecurityGroup],
       privateDnsEnabled: true,
+      subnets: { subnets: [vpc.isolatedSubnets[0]] },
     });
 
     // ========================================
@@ -176,6 +180,62 @@ export class PagilaStack extends cdk.Stack {
     dbSecret.grantRead(queryFunction);
 
     this.lambdaFunctionName = queryFunction.functionName;
+
+    // ========================================
+    // 3b. ONE-TIME DATABASE SEEDER (custom resource)
+    // Aurora is private, so it is seeded from inside the VPC on deploy. The SQL
+    // files are copied next to the handler at bundle time and loaded by pg.
+    // ========================================
+    const repoRoot = path.join(__dirname, '..', '..', '..');
+    const seederFunction = new NodejsFunction(this, 'PagilaSeeder', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, '..', 'lambda', 'seed-handler.ts'),
+      handler: 'handler',
+      timeout: cdk.Duration.minutes(15),
+      memorySize: 1024, // headroom for the ~5 MB INSERT data file
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        DB_SECRET_NAME: dbSecret.secretArn,
+        DB_HOST: dbCluster.clusterEndpoint.hostname,
+        DB_PORT: dbPort.toString(),
+        DB_NAME: dbName,
+      },
+      bundling: {
+        minify: true,
+        target: 'node20',
+        externalModules: ['@aws-sdk/*'],
+        // Ship the SQL files inside the deployment package.
+        commandHooks: {
+          beforeBundling: () => [],
+          beforeInstall: () => [],
+          afterBundling: (_inputDir: string, outputDir: string) => [
+            `cp "${path.join(repoRoot, 'pagila-schema.sql')}" "${outputDir}"`,
+            `cp "${path.join(repoRoot, 'pagila-schema-jsonb.sql')}" "${outputDir}"`,
+            `cp "${path.join(repoRoot, 'pagila-insert-data.sql')}" "${outputDir}"`,
+          ],
+        },
+      },
+      logGroup: new logs.LogGroup(this, 'PagilaSeederLogs', {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+      description: 'One-time Pagila schema + data loader (custom resource)',
+    });
+    dbSecret.grantRead(seederFunction);
+
+    const seederProvider = new cr.Provider(this, 'PagilaSeederProvider', {
+      onEventHandler: seederFunction,
+    });
+
+    const seed = new cdk.CustomResource(this, 'PagilaSeed', {
+      serviceToken: seederProvider.serviceToken,
+      properties: { version: '1' }, // bump to force a re-seed attempt
+    });
+    // Seed only after the database and the Secrets Manager endpoint exist.
+    seed.node.addDependency(dbCluster);
+    seed.node.addDependency(secretsEndpoint);
 
     // ========================================
     // 4. API GATEWAY - REST API (only entry point)
