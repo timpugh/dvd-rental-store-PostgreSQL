@@ -14,20 +14,23 @@ interface PagilaStackProps extends cdk.StackProps {
   dbMaxCapacity?: number;
   dbUsername?: string;
   environment?: string;
-  /** CIDR allowed to reach Aurora on 5432 (direct psql + Lambda). */
-  allowedCidr?: string;
 }
 
 /**
  * PagilaStack - AWS CDK infrastructure for the Pagila PostgreSQL training database.
  *
- * Minimum-cost serverless shape:
- * - Aurora PostgreSQL Serverless v2 with scale-to-zero (auto-pauses when idle)
- * - Publicly accessible (security-group restricted) so a laptop can connect with psql
- * - Lambda (bundled with esbuild) runs OUTSIDE the VPC, so there is no NAT gateway
- *   and no interface endpoints to pay for - it reaches Secrets Manager and the
- *   Aurora public endpoint directly
- * - API Gateway REST API for the web/query path
+ * Private / web-only shape (production-style):
+ * - Aurora PostgreSQL Serverless v2 with scale-to-zero, NOT publicly accessible,
+ *   in private isolated subnets
+ * - Lambda runs INSIDE the VPC (private subnets); its security group is the only
+ *   thing allowed to reach Aurora on 5432
+ * - A Secrets Manager interface VPC endpoint lets the in-VPC Lambda fetch the DB
+ *   credentials without a NAT gateway
+ * - API Gateway REST API is the only entry point (no direct psql from a laptop)
+ *
+ * Note: because Aurora is private, the database must be seeded from inside the VPC
+ * (e.g. a one-off seeder Lambda/CodeBuild). Running scripts/init-database.py from a
+ * laptop will not reach it.
  */
 export class PagilaStack extends cdk.Stack {
   public readonly auroraEndpoint: string;
@@ -45,22 +48,15 @@ export class PagilaStack extends cdk.Stack {
     const dbMaxCapacity = props?.dbMaxCapacity ?? this.node.tryGetContext('dbMaxCapacity') ?? 2;
     const dbUsername = props?.dbUsername ?? 'postgres';
     const environment = props?.environment ?? this.node.tryGetContext('environment') ?? 'training';
-    const allowedCidr = props?.allowedCidr ?? this.node.tryGetContext('allowedCidr') ?? '0.0.0.0/0';
     const dbName = 'pagila';
     const dbPort = 5432;
 
-    if (allowedCidr === '0.0.0.0/0') {
-      cdk.Annotations.of(this).addWarning(
-        'Aurora is reachable from 0.0.0.0/0 on 5432 (protected only by the DB password). ' +
-        'For tighter security set -c allowedCidr=<your.ip>/32 (note: this also restricts the ' +
-        'web/Lambda path, which connects from AWS IP space).'
-      );
-    }
-
     // ========================================
-    // 1. VPC & NETWORKING
-    // Public subnets only, no NAT gateway (NAT would cost ~$32/mo each and defeat
-    // the "minimum cost" goal). Aurora lives here and is publicly accessible.
+    // 1. VPC & SECURITY GROUPS
+    // Private isolated subnets only: no internet gateway, no NAT. Everything the
+    // Lambda needs is reached in-VPC (Aurora) or via an interface endpoint (Secrets
+    // Manager). CloudWatch Logs from Lambda do not traverse the VPC, so no log
+    // endpoint is required.
     // ========================================
     const vpc = new ec2.Vpc(this, 'PagilaVpc', {
       ipAddresses: ec2.IpAddresses.cidr(vpcCidr),
@@ -69,25 +65,52 @@ export class PagilaStack extends cdk.Stack {
       subnetConfiguration: [
         {
           cidrMask: 24,
-          name: 'Public',
-          subnetType: ec2.SubnetType.PUBLIC,
+          name: 'Private',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
         },
       ],
     });
 
+    // SG for the Lambda (source of all DB + endpoint traffic)
+    const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
+      vpc,
+      description: 'Pagila query Lambda',
+      allowAllOutbound: true,
+    });
+
+    // SG for Aurora: only the Lambda SG may connect on 5432
     const dbSecurityGroup = new ec2.SecurityGroup(this, 'AuroraSecurityGroup', {
       vpc,
-      description: 'Security group for Aurora PostgreSQL (Pagila)',
+      description: 'Aurora PostgreSQL (Pagila) - Lambda access only',
       allowAllOutbound: true,
     });
     dbSecurityGroup.addIngressRule(
-      ec2.Peer.ipv4(allowedCidr),
+      lambdaSecurityGroup,
       ec2.Port.tcp(dbPort),
-      'PostgreSQL access (psql + Lambda)'
+      'PostgreSQL from the query Lambda'
     );
 
+    // SG for the interface endpoint: HTTPS from the Lambda SG
+    const endpointSecurityGroup = new ec2.SecurityGroup(this, 'EndpointSecurityGroup', {
+      vpc,
+      description: 'Secrets Manager interface endpoint',
+      allowAllOutbound: true,
+    });
+    endpointSecurityGroup.addIngressRule(
+      lambdaSecurityGroup,
+      ec2.Port.tcp(443),
+      'HTTPS from the query Lambda'
+    );
+
+    // Interface endpoint so the in-VPC Lambda can call Secrets Manager (no NAT).
+    vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      securityGroups: [endpointSecurityGroup],
+      privateDnsEnabled: true,
+    });
+
     // ========================================
-    // 2. AURORA POSTGRESQL - SERVERLESS V2 (scale-to-zero)
+    // 2. AURORA POSTGRESQL - SERVERLESS V2 (private, scale-to-zero)
     // ========================================
     const dbCluster = new rds.DatabaseCluster(this, 'PagilaCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
@@ -98,13 +121,12 @@ export class PagilaStack extends cdk.Stack {
       }),
       defaultDatabaseName: dbName,
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSecurityGroup],
-      // Serverless v2 capacity range. minCapacity 0 => auto-pause when idle.
-      serverlessV2MinCapacity: dbMinCapacity,
+      serverlessV2MinCapacity: dbMinCapacity, // 0 => auto-pause when idle
       serverlessV2MaxCapacity: dbMaxCapacity,
       writer: rds.ClusterInstance.serverlessV2('Writer', {
-        publiclyAccessible: true,
+        publiclyAccessible: false,
         autoMinorVersionUpgrade: true,
       }),
       backup: { retention: cdk.Duration.days(7) },
@@ -121,9 +143,7 @@ export class PagilaStack extends cdk.Stack {
     this.dbSecretArn = dbSecret.secretArn;
 
     // ========================================
-    // 3. LAMBDA - QUERY EXECUTOR (bundled, outside the VPC)
-    // NodejsFunction transpiles query-handler.ts and bundles `pg` via esbuild.
-    // @aws-sdk/* is provided by the Node 20 runtime, so it is left external.
+    // 3. LAMBDA - QUERY EXECUTOR (bundled, in private subnets)
     // ========================================
     const queryFunction = new NodejsFunction(this, 'PagilaQueryFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -131,6 +151,9 @@ export class PagilaStack extends cdk.Stack {
       handler: 'handler',
       timeout: cdk.Duration.seconds(60), // allow for first-query Aurora resume from pause
       memorySize: 256,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [lambdaSecurityGroup],
       environment: {
         DB_SECRET_NAME: dbSecret.secretArn,
         DB_HOST: dbCluster.clusterEndpoint.hostname,
@@ -155,7 +178,7 @@ export class PagilaStack extends cdk.Stack {
     this.lambdaFunctionName = queryFunction.functionName;
 
     // ========================================
-    // 4. API GATEWAY - REST API
+    // 4. API GATEWAY - REST API (only entry point)
     // ========================================
     const api = new apigateway.RestApi(this, 'PagilaAPI', {
       restApiName: 'pagila-query-api',
@@ -183,7 +206,7 @@ export class PagilaStack extends cdk.Stack {
     // ========================================
     new cdk.CfnOutput(this, 'AuroraEndpoint', {
       value: dbCluster.clusterEndpoint.hostname,
-      description: 'Aurora PostgreSQL cluster endpoint',
+      description: 'Aurora PostgreSQL cluster endpoint (private - reachable only inside the VPC)',
     });
     new cdk.CfnOutput(this, 'AuroraPort', {
       value: dbPort.toString(),
@@ -200,10 +223,6 @@ export class PagilaStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'APIEndpoint', {
       value: api.url,
       description: 'API Gateway endpoint URL for query execution',
-    });
-    new cdk.CfnOutput(this, 'GetSecretCommand', {
-      value: `aws secretsmanager get-secret-value --secret-id ${dbSecret.secretArn} --query SecretString --output text`,
-      description: 'Command to retrieve the generated DB password',
     });
   }
 }

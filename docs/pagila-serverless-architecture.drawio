@@ -5,94 +5,77 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Title -->
         <mxCell id="title" value="AWS Serverless Pagila — PostgreSQL Training Environment" style="text;html=1;fontFamily=Helvetica;fontSize=24;fontStyle=1;align=left;verticalAlign=middle;fontColor=#232F3E;" parent="1" vertex="1">
           <mxGeometry x="40" y="20" width="920" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Aurora Serverless v2 (scale-to-zero) · Lambda · API Gateway — region us-east-1" style="text;html=1;fontFamily=Helvetica;fontSize=13;align=left;verticalAlign=middle;fontColor=#5A6B7B;" parent="1" vertex="1">
-          <mxGeometry x="40" y="52" width="760" height="20" as="geometry" />
+        <mxCell id="subtitle" value="Aurora Serverless v2 (private) · Lambda in VPC · API Gateway — web-only, region us-east-1" style="text;html=1;fontFamily=Helvetica;fontSize=13;align=left;verticalAlign=middle;fontColor=#5A6B7B;" parent="1" vertex="1">
+          <mxGeometry x="40" y="52" width="820" height="20" as="geometry" />
         </mxCell>
 
-        <!-- AWS Cloud group -->
         <mxCell id="aws-cloud" value="AWS Cloud · us-east-1" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=1;container=0;pointerEvents=0;collapsible=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#232F3E;dashed=0;" parent="1" vertex="1">
-          <mxGeometry x="200" y="100" width="1044" height="712" as="geometry" />
+          <mxGeometry x="200" y="100" width="1044" height="720" as="geometry" />
         </mxCell>
 
-        <!-- VPC group -->
-        <mxCell id="vpc" value="VPC · 10.0.0.0/16 · no NAT / no endpoints" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=1;container=0;pointerEvents=0;collapsible=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#8C4FFF;dashed=0;" parent="1" vertex="1">
-          <mxGeometry x="470" y="180" width="752" height="520" as="geometry" />
+        <mxCell id="vpc" value="VPC · 10.0.0.0/16 · private · no NAT" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=12;fontStyle=1;container=0;pointerEvents=0;collapsible=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#8C4FFF;dashed=0;" parent="1" vertex="1">
+          <mxGeometry x="440" y="160" width="782" height="540" as="geometry" />
         </mxCell>
 
-        <!-- Public subnet AZ-a -->
-        <mxCell id="subnet-a" value="Public subnet · AZ-a · 10.0.1.0/24" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;strokeColor=#7AA116;fillColor=#F2F8EC;fontColor=#5C7A12;" parent="1" vertex="1">
-          <mxGeometry x="500" y="240" width="340" height="300" as="geometry" />
+        <mxCell id="subnet-a" value="Private subnet · AZ-a · 10.0.1.0/24" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;strokeColor=#147EBA;fillColor=#F0F7FB;fontColor=#10688F;" parent="1" vertex="1">
+          <mxGeometry x="466" y="220" width="360" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="subnet-b" value="Private subnet · AZ-b · 10.0.2.0/24" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;strokeColor=#147EBA;fillColor=#F0F7FB;fontColor=#10688F;" parent="1" vertex="1">
+          <mxGeometry x="846" y="220" width="360" height="300" as="geometry" />
         </mxCell>
 
-        <!-- Public subnet AZ-b -->
-        <mxCell id="subnet-b" value="Public subnet · AZ-b · 10.0.2.0/24" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;strokeColor=#7AA116;fillColor=#F2F8EC;fontColor=#5C7A12;" parent="1" vertex="1">
-          <mxGeometry x="860" y="240" width="340" height="300" as="geometry" />
-        </mxCell>
-        <mxCell id="azb-note" value="failover AZ" style="text;html=1;fontFamily=Helvetica;fontSize=11;fontStyle=2;align=center;fontColor=#9AA7B4;" parent="1" vertex="1">
-          <mxGeometry x="980" y="385" width="100" height="20" as="geometry" />
-        </mxCell>
-
-        <!-- Developer / client -->
         <mxCell id="client-box" value="" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#9AA7B4;fillColor=#FFFFFF;" parent="1" vertex="1">
           <mxGeometry x="36" y="360" width="140" height="124" as="geometry" />
         </mxCell>
-        <mxCell id="client" value="Developer&#10;psql / HTTPS client" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;fontFamily=Helvetica;" parent="1" vertex="1">
+        <mxCell id="client" value="Developer&#10;HTTPS client" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;fontFamily=Helvetica;" parent="1" vertex="1">
           <mxGeometry x="83" y="378" width="46" height="46" as="geometry" />
         </mxCell>
 
-        <!-- API Gateway (outside VPC) -->
         <mxCell id="apigw" value="API Gateway&#10;REST · POST /query" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;fontFamily=Helvetica;" parent="1" vertex="1">
-          <mxGeometry x="337" y="300" width="46" height="46" as="geometry" />
+          <mxGeometry x="250" y="380" width="46" height="46" as="geometry" />
         </mxCell>
 
-        <!-- Lambda (outside VPC) -->
-        <mxCell id="lambda" value="AWS Lambda&#10;query-handler · Node 20 · no VPC" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;fontFamily=Helvetica;" parent="1" vertex="1">
-          <mxGeometry x="337" y="452" width="46" height="46" as="geometry" />
+        <mxCell id="lambda" value="AWS Lambda&#10;query-handler · Node 20" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="566" y="282" width="46" height="46" as="geometry" />
         </mxCell>
 
-        <!-- Secrets Manager (outside VPC) -->
+        <mxCell id="vpce" value="Interface Endpoint&#10;Secrets Manager (HTTPS)" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.endpoints;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="566" y="410" width="46" height="46" as="geometry" />
+        </mxCell>
+
+        <mxCell id="aurora" value="Aurora PostgreSQL&#10;Serverless v2 · private · auto-pause" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#2E73B8;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.aurora;fontFamily=Helvetica;" parent="1" vertex="1">
+          <mxGeometry x="986" y="300" width="46" height="46" as="geometry" />
+        </mxCell>
+
         <mxCell id="secrets" value="Secrets Manager&#10;DB credentials" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secrets_manager;fontFamily=Helvetica;" parent="1" vertex="1">
-          <mxGeometry x="337" y="604" width="46" height="46" as="geometry" />
+          <mxGeometry x="720" y="706" width="46" height="46" as="geometry" />
         </mxCell>
 
-        <!-- Aurora (in public subnet AZ-a) -->
-        <mxCell id="aurora" value="Aurora PostgreSQL&#10;Serverless v2 · 0.5–2 ACU · auto-pause" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#2E73B8;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.aurora;fontFamily=Helvetica;" parent="1" vertex="1">
-          <mxGeometry x="647" y="350" width="46" height="46" as="geometry" />
+        <!-- edges -->
+        <mxCell id="e1" value="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="client-box" target="apigw" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.3;entryX=0;entryY=0.6;" parent="1" source="apigw" target="lambda" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="lambda" target="vpce" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3b" value="get credentials" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#5A6B7B;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="vpce" target="secrets" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="4 · SQL :5432" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#39485A;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.35;entryX=0;entryY=0.5;" parent="1" source="lambda" target="aurora" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="5 · rows (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#7C8A99;strokeColor=#9AA7B4;strokeWidth=1.5;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.75;entryX=1;entryY=0.7;" parent="1" source="aurora" target="lambda" edge="1">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <!-- ============ EDGES ============ -->
-        <mxCell id="e1" value="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.4;entryX=0;entryY=0.7;" parent="1" source="client-box" target="apigw" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e2" value="2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="apigw" target="lambda" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e3" value="3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=12;fontStyle=1;fontColor=#ffffff;labelBackgroundColor=#00A4A6;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="lambda" target="secrets" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e4" value="4 · SQL :5432" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#39485A;strokeColor=#2E5B88;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.3;entryX=0;entryY=0.6;" parent="1" source="lambda" target="aurora" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e5" value="5 · rows (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontColor=#7C8A99;strokeColor=#9AA7B4;strokeWidth=1.5;dashed=1;endArrow=block;endFill=1;exitX=0;exitY=0.85;entryX=1;entryY=0.6;" parent="1" source="aurora" target="lambda" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- direct psql path -->
-        <mxCell id="epsql" value="direct psql :5432 (SG-restricted)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontFamily=Helvetica;fontSize=10;fontStyle=1;fontColor=#147E84;strokeColor=#147E84;strokeWidth=2;dashed=1;endArrow=block;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=0;" parent="1" source="client" target="aurora" edge="1">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="106" y="150" />
-              <mxPoint x="670" y="150" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
-
-        <!-- Legend -->
-        <mxCell id="legend" value="Request flow&#10;&#10;1 · POST /query (HTTPS)&#10;2 · Invoke Lambda&#10;3 · Read DB secret&#10;4 · Run SQL on Aurora&#10;5 · Return rows (JSON)&#10;&#10;- - direct psql also supported&#10;Lambda runs outside the VPC (no NAT,&#10;no endpoints) · Aurora auto-pauses idle" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;strokeColor=#D6DBE0;fillColor=#FAFAFA;fontColor=#39485A;" parent="1" vertex="1">
-          <mxGeometry x="36" y="524" width="210" height="244" as="geometry" />
+        <mxCell id="legend" value="Request flow&#10;&#10;1 · POST /query (HTTPS)&#10;2 · Invoke Lambda (in VPC)&#10;3 · Read secret via endpoint&#10;4 · Run SQL on Aurora&#10;5 · Return rows (JSON)&#10;&#10;Web-only: Aurora is private (no direct&#10;psql) · No NAT · 1 interface endpoint&#10;Aurora auto-pauses when idle" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;strokeColor=#D6DBE0;fillColor=#FAFAFA;fontColor=#39485A;" parent="1" vertex="1">
+          <mxGeometry x="36" y="524" width="216" height="250" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

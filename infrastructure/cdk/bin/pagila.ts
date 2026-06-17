@@ -24,7 +24,6 @@ const pagilaStack = new PagilaStack(app, 'PagilaStack', {
   dbMaxCapacity: app.node.tryGetContext('dbMaxCapacity') ?? 2,
   dbUsername: app.node.tryGetContext('dbUsername') ?? 'postgres',
   environment: app.node.tryGetContext('environment') ?? 'training',
-  allowedCidr: app.node.tryGetContext('allowedCidr') ?? '0.0.0.0/0',
   tags: {
     Project: 'Pagila',
     Environment: app.node.tryGetContext('environment') || 'training',

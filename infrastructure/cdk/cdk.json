@@ -20,7 +20,6 @@
     "subnetCidrMask": 24,
     "dbMinCapacity": 0,
     "dbMaxCapacity": 2,
-    "environment": "training",
-    "allowedCidr": "0.0.0.0/0"
+    "environment": "training"
   }
 }
