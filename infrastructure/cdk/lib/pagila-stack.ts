@@ -2,9 +2,8 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import * as path from 'path';
@@ -15,21 +14,22 @@ interface PagilaStackProps extends cdk.StackProps {
   dbMaxCapacity?: number;
   dbUsername?: string;
   environment?: string;
+  /** CIDR allowed to reach Aurora on 5432 (direct psql + Lambda). */
+  allowedCidr?: string;
 }
 
 /**
- * PagilaStack - AWS CDK Infrastructure for Pagila PostgreSQL Training Database
+ * PagilaStack - AWS CDK infrastructure for the Pagila PostgreSQL training database.
  *
- * Deploys a complete serverless PostgreSQL environment with:
- * - Aurora PostgreSQL cluster with serverless scaling
- * - Lambda function for query execution
- * - API Gateway REST API for web access
- * - VPC with security groups for networking
- * - Secrets Manager for credential storage
- * - IAM roles with proper permissions
+ * Minimum-cost serverless shape:
+ * - Aurora PostgreSQL Serverless v2 with scale-to-zero (auto-pauses when idle)
+ * - Publicly accessible (security-group restricted) so a laptop can connect with psql
+ * - Lambda (bundled with esbuild) runs OUTSIDE the VPC, so there is no NAT gateway
+ *   and no interface endpoints to pay for - it reaches Secrets Manager and the
+ *   Aurora public endpoint directly
+ * - API Gateway REST API for the web/query path
  */
 export class PagilaStack extends cdk.Stack {
-  // Public properties for outputs
   public readonly auroraEndpoint: string;
   public readonly auroraPort: number;
   public readonly apiEndpoint: string;
@@ -39,273 +39,171 @@ export class PagilaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: PagilaStackProps) {
     super(scope, id, props);
 
-    // Configuration
-    const vpcCidr = props?.vpcCidr || this.node.tryGetContext('vpcCidr') || '10.0.0.0/16';
-    const dbMinCapacity = props?.dbMinCapacity || this.node.tryGetContext('dbMinCapacity') || 0.5;
-    const dbMaxCapacity = props?.dbMaxCapacity || this.node.tryGetContext('dbMaxCapacity') || 2;
-    const dbUsername = props?.dbUsername || 'postgres';
-    const environment = props?.environment || this.node.tryGetContext('environment') || 'training';
+    // Configuration (use ?? so an explicit 0 min-capacity is preserved)
+    const vpcCidr = props?.vpcCidr ?? this.node.tryGetContext('vpcCidr') ?? '10.0.0.0/16';
+    const dbMinCapacity = props?.dbMinCapacity ?? this.node.tryGetContext('dbMinCapacity') ?? 0;
+    const dbMaxCapacity = props?.dbMaxCapacity ?? this.node.tryGetContext('dbMaxCapacity') ?? 2;
+    const dbUsername = props?.dbUsername ?? 'postgres';
+    const environment = props?.environment ?? this.node.tryGetContext('environment') ?? 'training';
+    const allowedCidr = props?.allowedCidr ?? this.node.tryGetContext('allowedCidr') ?? '0.0.0.0/0';
     const dbName = 'pagila';
     const dbPort = 5432;
 
+    if (allowedCidr === '0.0.0.0/0') {
+      cdk.Annotations.of(this).addWarning(
+        'Aurora is reachable from 0.0.0.0/0 on 5432 (protected only by the DB password). ' +
+        'For tighter security set -c allowedCidr=<your.ip>/32 (note: this also restricts the ' +
+        'web/Lambda path, which connects from AWS IP space).'
+      );
+    }
+
     // ========================================
     // 1. VPC & NETWORKING
+    // Public subnets only, no NAT gateway (NAT would cost ~$32/mo each and defeat
+    // the "minimum cost" goal). Aurora lives here and is publicly accessible.
     // ========================================
-    console.log('🔨 Creating VPC and networking infrastructure...');
-
-    // Create VPC with DNS support enabled (required for Aurora)
     const vpc = new ec2.Vpc(this, 'PagilaVpc', {
-      cidr: vpcCidr,
-      maxAzs: 2, // Multi-AZ for high availability
-      natGateways: 0, // No NAT needed for training environment
+      ipAddresses: ec2.IpAddresses.cidr(vpcCidr),
+      maxAzs: 2,
+      natGateways: 0,
       subnetConfiguration: [
         {
           cidrMask: 24,
-          name: 'Private',
-          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+          name: 'Public',
+          subnetType: ec2.SubnetType.PUBLIC,
         },
       ],
     });
 
-    // Create a security group for Aurora that allows inbound on port 5432
-    const auroraSecurityGroup = new ec2.SecurityGroup(this, 'AuroraSecurityGroup', {
+    const dbSecurityGroup = new ec2.SecurityGroup(this, 'AuroraSecurityGroup', {
       vpc,
-      description: 'Security group for Aurora PostgreSQL',
+      description: 'Security group for Aurora PostgreSQL (Pagila)',
       allowAllOutbound: true,
     });
-
-    // Allow inbound on PostgreSQL port from anywhere (for direct access)
-    // NOTE: In production, restrict this to specific IPs or security groups
-    auroraSecurityGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
+    dbSecurityGroup.addIngressRule(
+      ec2.Peer.ipv4(allowedCidr),
       ec2.Port.tcp(dbPort),
-      'PostgreSQL access from anywhere'
+      'PostgreSQL access (psql + Lambda)'
     );
 
     // ========================================
-    // 2. SECRETS MANAGER - DB CREDENTIALS
+    // 2. AURORA POSTGRESQL - SERVERLESS V2 (scale-to-zero)
     // ========================================
-    console.log('🔐 Creating Secrets Manager for database credentials...');
-
-    // Create secret in Secrets Manager with auto-generated password
-    const dbSecret = new secretsmanager.Secret(this, 'PagilaDbSecret', {
-      secretName: `pagila-db-credentials-${environment}`,
-      description: 'Database credentials for Pagila Aurora PostgreSQL',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({
-          username: dbUsername,
-          dbname: dbName,
-        }),
-        generateStringKey: 'password',
-        passwordLength: 32,
-        excludeCharacters: '"@/\\',
-      },
-    });
-
-    // ========================================
-    // 3. AURORA POSTGRESQL CLUSTER
-    // ========================================
-    console.log('🗄️  Creating Aurora PostgreSQL cluster...');
-
-    // Create DB cluster
     const dbCluster = new rds.DatabaseCluster(this, 'PagilaCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_15_3,
+        version: rds.AuroraPostgresEngineVersion.VER_16_6,
       }),
-      credentials: rds.Credentials.fromSecret(dbSecret),
+      credentials: rds.Credentials.fromGeneratedSecret(dbUsername, {
+        secretName: `pagila/${environment}/db-credentials`,
+      }),
       defaultDatabaseName: dbName,
       vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-      },
-      securityGroups: [auroraSecurityGroup],
-      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
-      backup: {
-        retention: cdk.Duration.days(7),
-      },
-      cloudwatchLogsExports: ['postgresql'],
-      iamAuthentication: false,
-      deletionProtection: false,
-      storageEncrypted: true,
-      writer: rds.ClusterInstance.provisioned('Instance', {
-        instanceType: ec2.InstanceType.of(
-          ec2.InstanceClass.BURSTABLE4_GRAVITON,
-          ec2.InstanceSize.MEDIUM
-        ),
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      securityGroups: [dbSecurityGroup],
+      // Serverless v2 capacity range. minCapacity 0 => auto-pause when idle.
+      serverlessV2MinCapacity: dbMinCapacity,
+      serverlessV2MaxCapacity: dbMaxCapacity,
+      writer: rds.ClusterInstance.serverlessV2('Writer', {
         publiclyAccessible: true,
         autoMinorVersionUpgrade: true,
       }),
+      backup: { retention: cdk.Duration.days(7) },
+      cloudwatchLogsExports: ['postgresql'],
+      storageEncrypted: true,
+      deletionProtection: false,
+      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
     });
 
-    // Store cluster endpoint for output
+    const dbSecret = dbCluster.secret!;
+
     this.auroraEndpoint = dbCluster.clusterEndpoint.hostname;
     this.auroraPort = dbPort;
     this.dbSecretArn = dbSecret.secretArn;
 
     // ========================================
-    // 4. IAM ROLE FOR LAMBDA
+    // 3. LAMBDA - QUERY EXECUTOR (bundled, outside the VPC)
+    // NodejsFunction transpiles query-handler.ts and bundles `pg` via esbuild.
+    // @aws-sdk/* is provided by the Node 20 runtime, so it is left external.
     // ========================================
-    console.log('👤 Creating IAM role for Lambda...');
-
-    // Create execution role for Lambda
-    const lambdaExecutionRole = new iam.Role(this, 'LambdaExecutionRole', {
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-      description: 'Execution role for Pagila query Lambda function',
-    });
-
-    // Add VPC execution policy
-    lambdaExecutionRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName(
-        'service-role/AWSLambdaVPCAccessExecutionRole'
-      )
-    );
-
-    // Add policy to read database credentials from Secrets Manager
-    dbSecret.grantRead(lambdaExecutionRole);
-
-    // Add inline policy for EC2 permissions (needed for VPC access)
-    lambdaExecutionRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'ec2:CreateNetworkInterface',
-          'ec2:DescribeNetworkInterfaces',
-          'ec2:DeleteNetworkInterface',
-        ],
-        resources: ['*'],
-      })
-    );
-
-    // ========================================
-    // 5. LAMBDA FUNCTION - QUERY EXECUTOR
-    // ========================================
-    console.log('⚡ Creating Lambda function for query execution...');
-
-    // Create Lambda function - inline code for simplicity
-    const queryFunction = new lambda.Function(this, 'PagilaQueryFunction', {
+    const queryFunction = new NodejsFunction(this, 'PagilaQueryFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      role: lambdaExecutionRole,
-      code: lambda.Code.fromAsset(path.join(__dirname, '..', 'lambda')),
-      timeout: cdk.Duration.seconds(30),
+      entry: path.join(__dirname, '..', 'lambda', 'query-handler.ts'),
+      handler: 'handler',
+      timeout: cdk.Duration.seconds(60), // allow for first-query Aurora resume from pause
       memorySize: 256,
       environment: {
-        DB_SECRET_NAME: dbSecret.secretName,
+        DB_SECRET_NAME: dbSecret.secretArn,
         DB_HOST: dbCluster.clusterEndpoint.hostname,
         DB_PORT: dbPort.toString(),
         DB_NAME: dbName,
-        NODE_ENV: 'production',
       },
-      vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+      bundling: {
+        minify: true,
+        target: 'node20',
+        externalModules: ['@aws-sdk/*'],
       },
-      securityGroups: [auroraSecurityGroup],
-      description: 'Handles POST requests to /query endpoint',
-      logRetention: logs.RetentionDays.ONE_WEEK,
+      logGroup: new logs.LogGroup(this, 'PagilaQueryFunctionLogs', {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+      description: 'Executes SQL against Pagila Aurora; handler for POST /query',
     });
+
+    // Allow the function to read the database credentials
+    dbSecret.grantRead(queryFunction);
 
     this.lambdaFunctionName = queryFunction.functionName;
 
     // ========================================
-    // 6. API GATEWAY - REST API
+    // 4. API GATEWAY - REST API
     // ========================================
-    console.log('🌐 Creating API Gateway REST API...');
-
-    // Create REST API
     const api = new apigateway.RestApi(this, 'PagilaAPI', {
       restApiName: 'pagila-query-api',
       description: 'API for executing Pagila database queries',
       deployOptions: {
         stageName: 'prod',
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
-        dataTraceEnabled: true,
         tracingEnabled: true,
       },
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
+        allowMethods: ['POST', 'OPTIONS'],
         allowHeaders: ['Content-Type'],
       },
     });
 
-    // Create /query resource
-    const queryResource = api.root.addResource('query');
-
-    // Create POST method with Lambda proxy integration
-    queryResource.addMethod(
-      'POST',
-      new apigateway.LambdaIntegration(queryFunction, {
-        proxy: true,
-      })
-    );
+    api.root
+      .addResource('query')
+      .addMethod('POST', new apigateway.LambdaIntegration(queryFunction, { proxy: true }));
 
     this.apiEndpoint = api.url;
 
     // ========================================
-    // 7. STACK OUTPUTS
+    // 5. OUTPUTS
     // ========================================
-    console.log('📋 Creating stack outputs...');
-
     new cdk.CfnOutput(this, 'AuroraEndpoint', {
       value: dbCluster.clusterEndpoint.hostname,
       description: 'Aurora PostgreSQL cluster endpoint',
-      exportName: `${this.stackName}-aurora-endpoint`,
     });
-
     new cdk.CfnOutput(this, 'AuroraPort', {
       value: dbPort.toString(),
       description: 'Aurora PostgreSQL port',
-      exportName: `${this.stackName}-aurora-port`,
     });
-
     new cdk.CfnOutput(this, 'DatabaseName', {
       value: dbName,
       description: 'Aurora database name',
-      exportName: `${this.stackName}-db-name`,
     });
-
-    new cdk.CfnOutput(this, 'DatabaseUsername', {
-      value: dbUsername,
-      description: 'Aurora database master username',
-      exportName: `${this.stackName}-db-username`,
-    });
-
     new cdk.CfnOutput(this, 'DBSecretArn', {
       value: dbSecret.secretArn,
-      description: 'ARN of Secrets Manager secret with database credentials',
-      exportName: `${this.stackName}-db-secret-arn`,
+      description: 'Secrets Manager secret with the database credentials',
     });
-
-    new cdk.CfnOutput(this, 'LambdaFunctionName', {
-      value: queryFunction.functionName,
-      description: 'Lambda function name for query execution',
-      exportName: `${this.stackName}-lambda-function`,
-    });
-
-    new cdk.CfnOutput(this, 'LambdaFunctionArn', {
-      value: queryFunction.functionArn,
-      description: 'Lambda function ARN',
-      exportName: `${this.stackName}-lambda-arn`,
-    });
-
     new cdk.CfnOutput(this, 'APIEndpoint', {
       value: api.url,
       description: 'API Gateway endpoint URL for query execution',
-      exportName: `${this.stackName}-api-endpoint`,
     });
-
-    new cdk.CfnOutput(this, 'VPCId', {
-      value: vpc.vpcId,
-      description: 'VPC ID for the infrastructure',
-      exportName: `${this.stackName}-vpc-id`,
+    new cdk.CfnOutput(this, 'GetSecretCommand', {
+      value: `aws secretsmanager get-secret-value --secret-id ${dbSecret.secretArn} --query SecretString --output text`,
+      description: 'Command to retrieve the generated DB password',
     });
-
-    new cdk.CfnOutput(this, 'ConnectionString', {
-      value: `postgresql://${dbUsername}@${dbCluster.clusterEndpoint.hostname}:${dbPort}/${dbName}`,
-      description: 'PostgreSQL connection string',
-      exportName: `${this.stackName}-connection-string`,
-    });
-
-    console.log('✅ Pagila CDK Stack created successfully!');
   }
 }

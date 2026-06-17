@@ -18,8 +18,9 @@
   "context": {
     "vpcCidr": "10.0.0.0/16",
     "subnetCidrMask": 24,
-    "dbMinCapacity": 0.5,
+    "dbMinCapacity": 0,
     "dbMaxCapacity": 2,
-    "environment": "training"
+    "environment": "training",
+    "allowedCidr": "0.0.0.0/0"
   }
 }

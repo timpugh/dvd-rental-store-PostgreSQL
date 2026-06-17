@@ -18,11 +18,13 @@ const pagilaStack = new PagilaStack(app, 'PagilaStack', {
     region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
   },
   // Override default values with context variables if needed
-  vpcCidr: app.node.tryGetContext('vpcCidr') || '10.0.0.0/16',
-  dbMinCapacity: app.node.tryGetContext('dbMinCapacity') || 0.5,
-  dbMaxCapacity: app.node.tryGetContext('dbMaxCapacity') || 2,
-  dbUsername: app.node.tryGetContext('dbUsername') || 'postgres',
-  environment: app.node.tryGetContext('environment') || 'training',
+  // (use ?? so an explicit dbMinCapacity of 0 - scale-to-zero - is preserved)
+  vpcCidr: app.node.tryGetContext('vpcCidr') ?? '10.0.0.0/16',
+  dbMinCapacity: app.node.tryGetContext('dbMinCapacity') ?? 0,
+  dbMaxCapacity: app.node.tryGetContext('dbMaxCapacity') ?? 2,
+  dbUsername: app.node.tryGetContext('dbUsername') ?? 'postgres',
+  environment: app.node.tryGetContext('environment') ?? 'training',
+  allowedCidr: app.node.tryGetContext('allowedCidr') ?? '0.0.0.0/0',
   tags: {
     Project: 'Pagila',
     Environment: app.node.tryGetContext('environment') || 'training',

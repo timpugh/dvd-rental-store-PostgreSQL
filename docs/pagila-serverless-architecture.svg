@@ -1,137 +1,129 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1280" viewBox="0 0 1280 1280" font-family="Helvetica, Arial, sans-serif">
-  <!-- background -->
   <rect x="0" y="0" width="1280" height="1280" fill="#ffffff"/>
 
   <!-- title -->
   <text x="40" y="48" font-size="27" font-weight="bold" fill="#232F3E">AWS Serverless Pagila — PostgreSQL Training Environment</text>
-  <text x="40" y="74" font-size="15" fill="#5A6B7B">Aurora Serverless v2 · Lambda · API Gateway — region us-east-1</text>
+  <text x="40" y="74" font-size="15" fill="#5A6B7B">Aurora Serverless v2 (scale-to-zero) · Lambda · API Gateway — region us-east-1</text>
 
-  <!-- AWS Cloud boundary -->
-  <rect x="206" y="104" width="1038" height="700" rx="10" fill="none" stroke="#232F3E" stroke-width="2"/>
-  <text x="226" y="132" font-size="14" font-weight="bold" fill="#232F3E">AWS Cloud</text>
-  <text x="226" y="150" font-size="11" fill="#5A6B7B">us-east-1</text>
+  <!-- AWS Cloud -->
+  <rect x="200" y="100" width="1044" height="712" rx="10" fill="none" stroke="#232F3E" stroke-width="2"/>
+  <text x="220" y="128" font-size="14" font-weight="bold" fill="#232F3E">AWS Cloud</text>
+  <text x="220" y="146" font-size="11" fill="#5A6B7B">us-east-1</text>
 
   <!-- VPC -->
-  <rect x="430" y="166" width="792" height="500" rx="8" fill="#F7F2FF" stroke="#8C4FFF" stroke-width="2"/>
-  <text x="448" y="190" font-size="13" font-weight="bold" fill="#8C4FFF">VPC · 10.0.0.0/16</text>
+  <rect x="470" y="180" width="752" height="520" rx="8" fill="#F7F2FF" stroke="#8C4FFF" stroke-width="2"/>
+  <text x="488" y="204" font-size="13" font-weight="bold" fill="#8C4FFF">VPC · 10.0.0.0/16 · no NAT / no endpoints</text>
 
-  <!-- Subnet AZ-a -->
-  <rect x="456" y="210" width="360" height="320" rx="6" fill="#F0FBFB" stroke="#00A4A6" stroke-width="1.5"/>
-  <text x="470" y="231" font-size="11" font-weight="bold" fill="#147E84">Private subnet · AZ-a · 10.0.1.0/24</text>
+  <!-- Public subnet AZ-a -->
+  <rect x="500" y="240" width="340" height="300" rx="6" fill="#EEF7EF" stroke="#7AA116" stroke-width="1.5"/>
+  <text x="514" y="261" font-size="11" font-weight="bold" fill="#5C7A12">Public subnet · AZ-a · 10.0.1.0/24</text>
 
-  <!-- Subnet AZ-b -->
-  <rect x="836" y="210" width="360" height="320" rx="6" fill="#F0FBFB" stroke="#00A4A6" stroke-width="1.5"/>
-  <text x="850" y="231" font-size="11" font-weight="bold" fill="#147E84">Private subnet · AZ-b · 10.0.2.0/24</text>
+  <!-- Public subnet AZ-b -->
+  <rect x="860" y="240" width="340" height="300" rx="6" fill="#EEF7EF" stroke="#7AA116" stroke-width="1.5"/>
+  <text x="874" y="261" font-size="11" font-weight="bold" fill="#5C7A12">Public subnet · AZ-b · 10.0.2.0/24</text>
+  <text x="1030" y="400" font-size="11" fill="#9AA7B4" text-anchor="middle" font-style="italic">failover AZ</text>
 
-  <!-- ===================== EDGES (draw first, under icons) ===================== -->
-  <!-- 1 Client -> API GW -->
-  <line x1="178" y1="404" x2="247" y2="404" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
-  <!-- response API GW -> Client (dashed) -->
-  <line x1="247" y1="430" x2="178" y2="430" stroke="#9AA7B4" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrowg)"/>
+  <!-- ===================== EDGES (under icons) ===================== -->
+  <!-- direct psql path: Developer -> Aurora (top route) -->
+  <polyline points="106,360 106,150 670,150 670,348" fill="none" stroke="#147E84" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowt)"/>
 
+  <!-- 1 Developer -> API GW -->
+  <line x1="178" y1="408" x2="333" y2="332" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
   <!-- 2 API GW -> Lambda -->
-  <line x1="298" y1="408" x2="595" y2="300" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
-
+  <line x1="360" y1="348" x2="360" y2="450" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <!-- 3 Lambda -> Secrets -->
+  <line x1="360" y1="500" x2="360" y2="602" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
   <!-- 4 Lambda -> Aurora -->
-  <line x1="652" y1="288" x2="989" y2="288" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="385" y1="466" x2="644" y2="367" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
   <!-- 5 rows Aurora -> Lambda (dashed) -->
-  <line x1="989" y1="312" x2="652" y2="312" stroke="#9AA7B4" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrowg)"/>
-
-  <!-- 3 Lambda -> Endpoint -->
-  <line x1="629" y1="313" x2="629" y2="397" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
-  <!-- Endpoint -> Secrets Manager -->
-  <line x1="640" y1="443" x2="804" y2="703" stroke="#2E5B88" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="644" y1="392" x2="385" y2="500" stroke="#9AA7B4" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrowg)"/>
 
   <!-- ===================== ICONS ===================== -->
 
-  <!-- Client (outside VPC, inside? actually external left) -->
-  <rect x="36" y="350" width="142" height="132" rx="8" fill="#FFFFFF" stroke="#9AA7B4" stroke-width="1.4"/>
+  <!-- Developer -->
+  <rect x="36" y="360" width="140" height="124" rx="8" fill="#FFFFFF" stroke="#9AA7B4" stroke-width="1.4"/>
   <g>
-    <rect x="84" y="366" width="46" height="46" rx="8" fill="#232F3E"/>
-    <circle cx="107" cy="382" r="7" fill="#ffffff"/>
-    <path d="M93 404 q14 -16 28 0 z" fill="#ffffff"/>
+    <rect x="83" y="378" width="46" height="46" rx="8" fill="#232F3E"/>
+    <circle cx="106" cy="394" r="7" fill="#ffffff"/>
+    <path d="M92 416 q14 -16 28 0 z" fill="#ffffff"/>
   </g>
-  <text x="107" y="436" font-size="13" font-weight="bold" fill="#232F3E" text-anchor="middle">Developer</text>
-  <text x="107" y="453" font-size="11" fill="#5A6B7B" text-anchor="middle">psql / HTTPS client</text>
+  <text x="106" y="448" font-size="13" font-weight="bold" fill="#232F3E" text-anchor="middle">Developer</text>
+  <text x="106" y="465" font-size="11" fill="#5A6B7B" text-anchor="middle">psql / HTTPS client</text>
 
   <!-- API Gateway -->
   <g>
-    <rect x="250" y="381" width="46" height="46" rx="8" fill="#8C4FFF"/>
-    <text x="273" y="410" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">API</text>
+    <rect x="337" y="300" width="46" height="46" rx="8" fill="#8C4FFF"/>
+    <text x="360" y="329" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">API</text>
   </g>
-  <text x="273" y="447" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">API Gateway</text>
-  <text x="273" y="463" font-size="10" fill="#5A6B7B" text-anchor="middle">REST · POST /query</text>
+  <text x="360" y="366" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">API Gateway</text>
+  <text x="360" y="381" font-size="10" fill="#5A6B7B" text-anchor="middle">REST · POST /query</text>
 
   <!-- Lambda -->
   <g>
-    <rect x="606" y="267" width="46" height="46" rx="8" fill="#ED7100"/>
-    <text x="629" y="299" font-size="26" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="Georgia, serif">&#955;</text>
+    <rect x="337" y="452" width="46" height="46" rx="8" fill="#ED7100"/>
+    <text x="360" y="484" font-size="26" font-weight="bold" fill="#ffffff" text-anchor="middle" font-family="Georgia, serif">&#955;</text>
   </g>
-  <text x="629" y="333" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">AWS Lambda</text>
-  <text x="629" y="349" font-size="10" fill="#5A6B7B" text-anchor="middle">query-handler · Node 20</text>
+  <text x="360" y="518" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">AWS Lambda</text>
+  <text x="360" y="533" font-size="10" fill="#5A6B7B" text-anchor="middle">query-handler · Node 20 · no VPC</text>
 
-  <!-- Interface Endpoint (Secrets Manager) -->
+  <!-- Secrets Manager -->
   <g>
-    <rect x="606" y="397" width="46" height="46" rx="8" fill="#8C4FFF"/>
-    <text x="629" y="425" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">VPCe</text>
+    <rect x="337" y="604" width="46" height="46" rx="8" fill="#DD344C"/>
+    <path d="M353 624 a7 7 0 0 1 14 0" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+    <rect x="351" y="623" width="18" height="15" rx="2" fill="#ffffff"/>
+    <circle cx="360" cy="630" r="2" fill="#DD344C"/>
   </g>
-  <text x="629" y="463" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">Interface Endpoint</text>
-  <text x="629" y="479" font-size="10" fill="#5A6B7B" text-anchor="middle">private route to Secrets Mgr</text>
+  <text x="360" y="670" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">Secrets Manager</text>
+  <text x="360" y="685" font-size="10" fill="#5A6B7B" text-anchor="middle">DB credentials</text>
 
   <!-- Aurora -->
   <g>
-    <rect x="993" y="265" width="46" height="46" rx="8" fill="#2E73B8"/>
-    <ellipse cx="1016" cy="280" rx="12" ry="4" fill="#ffffff"/>
-    <rect x="1004" y="280" width="24" height="16" fill="#ffffff"/>
-    <ellipse cx="1016" cy="296" rx="12" ry="4" fill="#ffffff"/>
-    <ellipse cx="1016" cy="288" rx="12" ry="4" fill="none" stroke="#2E73B8" stroke-width="1"/>
+    <rect x="647" y="350" width="46" height="46" rx="8" fill="#2E73B8"/>
+    <ellipse cx="670" cy="365" rx="12" ry="4" fill="#ffffff"/>
+    <rect x="658" y="365" width="24" height="16" fill="#ffffff"/>
+    <ellipse cx="670" cy="381" rx="12" ry="4" fill="#ffffff"/>
+    <ellipse cx="670" cy="373" rx="12" ry="4" fill="none" stroke="#2E73B8" stroke-width="1"/>
   </g>
-  <text x="1016" y="331" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">Aurora PostgreSQL</text>
-  <text x="1016" y="347" font-size="10" fill="#5A6B7B" text-anchor="middle">Serverless v2 · 0.5–2 ACU</text>
-
-  <!-- Secrets Manager (in AWS cloud, below VPC) -->
-  <g>
-    <rect x="781" y="700" width="46" height="46" rx="8" fill="#DD344C"/>
-    <path d="M797 720 a7 7 0 0 1 14 0" fill="none" stroke="#ffffff" stroke-width="2.4"/>
-    <rect x="795" y="719" width="18" height="15" rx="2" fill="#ffffff"/>
-    <circle cx="804" cy="726" r="2" fill="#DD344C"/>
-  </g>
-  <text x="804" y="762" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">Secrets Manager</text>
-  <text x="804" y="778" font-size="10" fill="#5A6B7B" text-anchor="middle">DB credentials</text>
+  <text x="670" y="416" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle">Aurora PostgreSQL</text>
+  <text x="670" y="431" font-size="10" fill="#5A6B7B" text-anchor="middle">Serverless v2 · 0.5–2 ACU</text>
+  <text x="670" y="445" font-size="10" fill="#147E84" text-anchor="middle">auto-pause at 0 · public (SG-locked)</text>
 
   <!-- ===================== STEP BADGES ===================== -->
   <g font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">
-    <circle cx="212" cy="384" r="13" fill="#00A4A6"/><text x="212" y="389">1</text>
-    <circle cx="446" cy="345" r="13" fill="#00A4A6"/><text x="446" y="350">2</text>
-    <circle cx="648" cy="358" r="13" fill="#00A4A6"/><text x="648" y="363">3</text>
-    <circle cx="820" cy="272" r="13" fill="#00A4A6"/><text x="820" y="277">4</text>
-    <circle cx="820" cy="330" r="13" fill="#00A4A6"/><text x="820" y="335">5</text>
+    <circle cx="250" cy="360" r="13" fill="#00A4A6"/><text x="250" y="365">1</text>
+    <circle cx="377" cy="399" r="13" fill="#00A4A6"/><text x="377" y="404">2</text>
+    <circle cx="377" cy="551" r="13" fill="#00A4A6"/><text x="377" y="556">3</text>
+    <circle cx="512" cy="406" r="13" fill="#00A4A6"/><text x="512" y="411">4</text>
+    <circle cx="498" cy="470" r="13" fill="#9AA7B4"/><text x="498" y="475">5</text>
   </g>
-  <text x="812" y="300" font-size="10" fill="#5A6B7B" text-anchor="middle">SQL :5432</text>
+  <text x="566" y="430" font-size="10" fill="#5A6B7B" text-anchor="middle">SQL :5432</text>
+  <text x="388" y="142" font-size="11" fill="#147E84" text-anchor="middle" font-weight="bold">direct psql :5432 (SG-restricted)</text>
 
   <!-- ===================== LEGEND ===================== -->
-  <rect x="36" y="520" width="150" height="232" rx="8" fill="#FAFAFA" stroke="#D6DBE0" stroke-width="1.2"/>
-  <text x="48" y="544" font-size="13" font-weight="bold" fill="#232F3E">Request flow</text>
+  <rect x="36" y="524" width="196" height="244" rx="8" fill="#FAFAFA" stroke="#D6DBE0" stroke-width="1.2"/>
+  <text x="48" y="548" font-size="13" font-weight="bold" fill="#232F3E">Request flow</text>
   <g font-size="11" fill="#39485A">
-    <text x="48" y="568">1 · POST /query (HTTPS)</text>
-    <text x="48" y="590">2 · Invoke Lambda</text>
-    <text x="48" y="612">3 · Fetch DB secret</text>
-    <text x="48" y="627" fill="#7C8A99" font-size="10">via VPC endpoint</text>
-    <text x="48" y="649">4 · Run SQL on Aurora</text>
-    <text x="48" y="671">5 · Return rows (JSON)</text>
+    <text x="48" y="572">1 · POST /query (HTTPS)</text>
+    <text x="48" y="594">2 · Invoke Lambda</text>
+    <text x="48" y="616">3 · Read DB secret</text>
+    <text x="48" y="638">4 · Run SQL on Aurora</text>
+    <text x="48" y="660">5 · Return rows (JSON)</text>
   </g>
-  <line x1="48" y1="686" x2="174" y2="686" stroke="#E0E4E8" stroke-width="1"/>
-  <text x="48" y="706" font-size="10" fill="#5A6B7B">— solid: request</text>
-  <text x="48" y="722" font-size="10" fill="#5A6B7B">- - dashed: response</text>
-  <text x="48" y="742" font-size="10" fill="#147E84">Aurora auto-pauses when idle</text>
+  <line x1="48" y1="676" x2="220" y2="676" stroke="#E0E4E8" stroke-width="1"/>
+  <text x="48" y="696" font-size="10" fill="#147E84">- - direct psql also supported</text>
+  <text x="48" y="714" font-size="10" fill="#5A6B7B">Lambda runs outside the VPC</text>
+  <text x="48" y="730" font-size="10" fill="#5A6B7B">(no NAT, no endpoints)</text>
+  <text x="48" y="750" font-size="10" fill="#147E84">Aurora auto-pauses when idle</text>
 
-  <!-- arrow markers -->
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 z" fill="#2E5B88"/>
     </marker>
     <marker id="arrowg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 z" fill="#9AA7B4"/>
+    </marker>
+    <marker id="arrowt" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 z" fill="#147E84"/>
     </marker>
   </defs>
 </svg>
