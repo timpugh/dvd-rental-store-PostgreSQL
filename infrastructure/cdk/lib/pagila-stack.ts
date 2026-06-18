@@ -191,12 +191,20 @@ export class PagilaStack extends cdk.Stack {
     // files are copied next to the handler at bundle time and loaded by pg.
     // ========================================
     const repoRoot = path.join(__dirname, '..', '..', '..');
-    const seederFunction = new NodejsFunction(this, 'PagilaSeeder', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, '..', 'lambda', 'seed-handler.ts'),
-      handler: 'handler',
+    const seederFunction = new lambda.DockerImageFunction(this, 'PagilaSeeder', {
+      code: lambda.DockerImageCode.fromImageAsset(repoRoot, {
+        file: 'infrastructure/cdk/seeder/Dockerfile',
+        exclude: [
+          'infrastructure/cdk/node_modules',
+          'infrastructure/cdk/cdk.out',
+          'infrastructure/cdk/dist',
+          '.git',
+          'docs',
+          'pgadmin',
+        ],
+      }),
       timeout: cdk.Duration.minutes(15),
-      memorySize: 1024, // headroom for the ~5 MB INSERT data file
+      memorySize: 2048,
       vpc,
       vpcSubnets: singleAzSubnets,
       securityGroups: [lambdaSecurityGroup],
@@ -206,26 +214,11 @@ export class PagilaStack extends cdk.Stack {
         DB_PORT: dbPort.toString(),
         DB_NAME: dbName,
       },
-      bundling: {
-        minify: true,
-        target: 'node20',
-        externalModules: ['@aws-sdk/*'],
-        // Ship the SQL files inside the deployment package.
-        commandHooks: {
-          beforeBundling: () => [],
-          beforeInstall: () => [],
-          afterBundling: (_inputDir: string, outputDir: string) => [
-            `cp "${path.join(repoRoot, 'pagila-schema.sql')}" "${outputDir}"`,
-            `cp "${path.join(repoRoot, 'pagila-schema-jsonb.sql')}" "${outputDir}"`,
-            `cp "${path.join(repoRoot, 'pagila-insert-data.sql')}" "${outputDir}"`,
-          ],
-        },
-      },
       logGroup: new logs.LogGroup(this, 'PagilaSeederLogs', {
         retention: logs.RetentionDays.ONE_WEEK,
         removalPolicy: cdk.RemovalPolicy.DESTROY,
       }),
-      description: 'One-time Pagila schema + data loader (custom resource)',
+      description: 'One-time Pagila seeder (container: psql + pg_restore, incl. JSONB)',
     });
     dbSecret.grantRead(seederFunction);
 
@@ -235,7 +228,7 @@ export class PagilaStack extends cdk.Stack {
 
     const seed = new cdk.CustomResource(this, 'PagilaSeed', {
       serviceToken: seederProvider.serviceToken,
-      properties: { version: '1' }, // bump to force a re-seed attempt
+      properties: { version: '2' }, // bump to force a re-seed attempt
     });
     // Seed only after the database and the Secrets Manager endpoint exist.
     seed.node.addDependency(dbCluster);
