@@ -24,10 +24,25 @@ it.
 ```bash
 npm install
 npx cdk synth          # build + validate (no AWS calls)
-npx cdk bootstrap      # first time per account/region
+npx cdk bootstrap --template bootstrap-template.yaml   # first time per account/region (see below)
 npx cdk deploy         # deploy + auto-seed
-npx cdk destroy        # tear down (Aurora leaves a final snapshot)
+npx cdk destroy        # tear down (no final snapshot — RemovalPolicy.DESTROY)
 ```
+
+### Bootstrap with asset cleanup
+
+[bootstrap-template.yaml](bootstrap-template.yaml) is the standard CDK bootstrap
+template with two added lifecycle rules so deploy assets don't accumulate (and
+keep billing) forever:
+
+- **S3** staging bucket: expire current objects after 14 days, noncurrent versions
+  after 1 day (the default only cleans noncurrent after 30 days, never current).
+- **ECR** asset repo: expire images after 14 days, **including tagged** ones (the
+  default only expires *untagged* images, which CDK never creates).
+
+Bootstrap (or re-bootstrap) with `--template bootstrap-template.yaml` to keep these
+rules; a plain `npx cdk bootstrap` would revert to the defaults. Account/region are
+taken from your AWS CLI config, or pass `aws://<account>/<region>` explicitly.
 
 ## Context / configuration
 
