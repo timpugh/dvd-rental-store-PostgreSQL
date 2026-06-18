@@ -55,8 +55,11 @@ export class PagilaStack extends cdk.Stack {
     const dbMaxCapacity = props?.dbMaxCapacity ?? this.node.tryGetContext('dbMaxCapacity') ?? 2;
     const dbUsername = props?.dbUsername ?? 'postgres';
     const environment = props?.environment ?? this.node.tryGetContext('environment') ?? 'training';
+    // Bedrock invokes Claude Haiku 4.5 via a cross-region inference profile
+    // (the bare foundation-model id is not on-demand invokable). Override with
+    // -c bedrockModelId=... if your account/region uses a different profile.
     const bedrockModelId =
-      this.node.tryGetContext('bedrockModelId') ?? 'anthropic.claude-haiku-4-5';
+      this.node.tryGetContext('bedrockModelId') ?? 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
     const dbName = 'pagila';
     const dbPort = 5432;
 
