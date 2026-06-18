@@ -1,7 +1,7 @@
 # Natural-Language Query Frontend — Design
 
 **Date:** 2026-06-17
-**Status:** Approved (pending spec review)
+**Status:** Approved
 
 ## Goal
 
