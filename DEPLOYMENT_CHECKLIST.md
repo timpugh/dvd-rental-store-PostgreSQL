@@ -26,9 +26,11 @@ npx cdk deploy
 ## Verify
 
 ```bash
-cp .env.example .env          # set API_ENDPOINT to the APIEndpoint output
-./scripts/query-api.sh "SELECT count(*) FROM film;"     # expect ~1000
-python3 tests/integration-test.py                       # all checks PASS
+# Open the SiteURL output in a browser to ask questions in plain English, or:
+API_ENDPOINT=<APIEndpoint output>
+curl -sS -X POST "${API_ENDPOINT}query" -H "Content-Type: application/json" \
+  -d '{"query":"SELECT count(*) FROM film;"}'            # expect ~1000
+python3 tests/integration-test.py                        # all checks PASS
 ```
 
 - [ ] `film` count is ~1000, `rental`/`payment` are ~16k.

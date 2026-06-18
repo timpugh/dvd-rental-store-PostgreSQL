@@ -27,17 +27,14 @@ npx cdk bootstrap            # first time in the account/region only
 npx cdk deploy               # creates everything AND seeds the database
 ```
 
-When it finishes, copy the **`APIEndpoint`** output into a `.env` file, then query:
+When it finishes, open the **`SiteURL`** output in a browser to ask questions in
+plain English (the page shows the generated SQL, terminal-style results, an
+explanation, and a collapsible list of tables/fields). Or query the database
+directly with the **`APIEndpoint`** output:
 
 ```bash
-cp .env.example .env         # set API_ENDPOINT to the APIEndpoint output
-./scripts/query-api.sh "SELECT count(*) FROM film;"
-```
-
-Or call it directly:
-
-```bash
-curl -sS -X POST "$API_ENDPOINT/query" \
+API_ENDPOINT=<APIEndpoint output>   # e.g. https://xxxx.execute-api.us-east-1.amazonaws.com/prod/
+curl -sS -X POST "${API_ENDPOINT}query" \
   -H "Content-Type: application/json" \
   -d '{"query":"SELECT title, rental_rate FROM film LIMIT 5;"}' | jq
 ```

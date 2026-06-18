@@ -16,13 +16,11 @@ cp .env.example .env
 
 ## 2. Run queries
 
-**Helper script** (builds the JSON safely, appends `/query`, pretty-prints):
+**Web UI:** open the **`SiteURL`** output in a browser and ask in plain English —
+it generates the SQL, runs it, shows terminal-style results and an explanation,
+and lists the available tables/fields in a collapsible panel.
 
-```bash
-./scripts/query-api.sh "SELECT count(*) FROM film;"
-```
-
-**Plain curl:**
+**Plain curl (raw SQL via the API):**
 
 ```bash
 curl -sS -X POST "$API_ENDPOINT/query" \

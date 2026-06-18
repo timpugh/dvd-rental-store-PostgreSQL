@@ -33,8 +33,69 @@ const EXAMPLES = [
   ['Show the 5 most recently updated yum packages', 'packages_yum… (jsonb)'],
 ];
 
+// ---- schema reference (what fields are available to query) ----
+const SCHEMA = [
+  ['Films & catalog', [
+    ['film', 'film_id, title, description, release_year, language_id, rental_rate, length, replacement_cost, rating, fulltext'],
+    ['actor', 'actor_id, first_name, last_name'],
+    ['category', 'category_id, name'],
+    ['language', 'language_id, name'],
+    ['film_actor', 'actor_id, film_id'],
+    ['film_category', 'film_id, category_id'],
+  ]],
+  ['Inventory, rentals & payments', [
+    ['inventory', 'inventory_id, film_id, store_id'],
+    ['rental', 'rental_id, rental_date, return_date, inventory_id, customer_id, staff_id'],
+    ['payment', 'payment_id, customer_id, staff_id, rental_id, amount, payment_date'],
+    ['store', 'store_id, manager_staff_id, address_id'],
+    ['staff', 'staff_id, first_name, last_name, email, store_id, active, username'],
+  ]],
+  ['Customers & locations', [
+    ['customer', 'customer_id, store_id, first_name, last_name, email, address_id, activebool, create_date'],
+    ['address', 'address_id, address, district, city_id, postal_code, phone'],
+    ['city', 'city_id, city, country_id'],
+    ['country', 'country_id, country'],
+  ]],
+  ['Package metadata (JSONB)', [
+    ['packages_apt_postgresql_org', "id, last_updated, aptdata (jsonb keys: Package, Version, Size…)"],
+    ['packages_yum_postgresql_org', "id, last_updated, yumdata (jsonb keys: name, version, size…)"],
+  ]],
+];
+const SCHEMA_TIPS =
+  "Tips: film.rating is an enum (G, PG, PG-13, R, NC-17) · full-text search via film.fulltext (to_tsquery) · " +
+  "read JSONB fields with ->> e.g. aptdata->>'Package' · views: film_list, sales_by_store, sales_by_film_category.";
+
 if (typeof document !== 'undefined') {
   const $ = (id) => document.getElementById(id);
+
+  function renderSchema() {
+    const root = $('schema');
+    if (!root) return;
+    SCHEMA.forEach(([group, tables]) => {
+      const h = document.createElement('h3');
+      h.textContent = group;
+      root.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'schema-grid';
+      tables.forEach(([name, cols]) => {
+        const card = document.createElement('div');
+        card.className = 'tbl';
+        const n = document.createElement('span');
+        n.className = 'tbl-name';
+        n.textContent = name;
+        const c = document.createElement('span');
+        c.className = 'tbl-cols';
+        c.textContent = cols;
+        card.append(n, c);
+        grid.appendChild(card);
+      });
+      root.appendChild(grid);
+    });
+    const tips = document.createElement('p');
+    tips.className = 'schema-tips';
+    tips.textContent = SCHEMA_TIPS;
+    root.appendChild(tips);
+  }
 
   function renderExamples() {
     const grid = $('examples');
@@ -91,6 +152,7 @@ if (typeof document !== 'undefined') {
 
   window.addEventListener('DOMContentLoaded', () => {
     renderExamples();
+    renderSchema();
     $('runBtn').addEventListener('click', run);
     $('prompt').addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();

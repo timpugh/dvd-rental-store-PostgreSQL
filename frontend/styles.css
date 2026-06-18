@@ -15,6 +15,15 @@ textarea { width:100%; background:var(--panel); color:var(--ink); border:1px sol
 .chip:hover { border-color:var(--accent); }
 .chip-q { display:block; font-size:14px; }
 .chip-tag { display:block; color:var(--muted); font-size:12px; margin-top:4px; }
+.schema { max-width: 980px; margin: 18px auto 0; padding: 0 20px; }
+.schema > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; padding: 8px 0; list-style: none; }
+.schema > summary::-webkit-details-marker { display: none; }
+.schema h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 6px; }
+.schema-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.tbl { background: var(--panel); border: 1px solid #2c3a48; border-radius: 8px; padding: 8px 10px; }
+.tbl-name { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8f7c5; font-size: 13px; }
+.tbl-cols { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.schema-tips { color: var(--muted); font-size: 12px; margin-top: 14px; }
 .output { padding-bottom: 60px; }
 .output h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:22px 0 6px; }
 .req { font-size:16px; }
