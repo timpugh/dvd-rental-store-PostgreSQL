@@ -4,6 +4,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
@@ -49,6 +50,8 @@ export class PagilaStack extends cdk.Stack {
     const dbMaxCapacity = props?.dbMaxCapacity ?? this.node.tryGetContext('dbMaxCapacity') ?? 2;
     const dbUsername = props?.dbUsername ?? 'postgres';
     const environment = props?.environment ?? this.node.tryGetContext('environment') ?? 'training';
+    const bedrockModelId =
+      this.node.tryGetContext('bedrockModelId') ?? 'anthropic.claude-haiku-4-5';
     const dbName = 'pagila';
     const dbPort = 5432;
 
@@ -255,6 +258,41 @@ export class PagilaStack extends cdk.Stack {
     api.root
       .addResource('query')
       .addMethod('POST', new apigateway.LambdaIntegration(queryFunction, { proxy: true }));
+
+    // ---- NL -> SQL "ask" Lambda (outside the VPC; reaches Bedrock + invokes query Lambda) ----
+    const askFunction = new NodejsFunction(this, 'PagilaAskFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, '..', 'lambda', 'ask-handler.ts'),
+      handler: 'handler',
+      timeout: cdk.Duration.seconds(28), // under the API Gateway 29s ceiling
+      memorySize: 256,
+      environment: {
+        BEDROCK_MODEL_ID: bedrockModelId,
+        QUERY_FUNCTION_NAME: queryFunction.functionName,
+      },
+      bundling: { minify: true, target: 'node20', externalModules: ['@aws-sdk/*'] },
+      logGroup: new logs.LogGroup(this, 'PagilaAskFunctionLogs', {
+        retention: logs.RetentionDays.ONE_WEEK,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }),
+      description: 'NL -> SQL orchestrator (Bedrock Converse + invokes the query Lambda)',
+    });
+    queryFunction.grantInvoke(askFunction);
+    askFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          'arn:aws:bedrock:*::foundation-model/anthropic.*',
+          `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
+        ],
+      }),
+    );
+    api.root.addResource('ask').addMethod('POST', new apigateway.LambdaIntegration(askFunction, { proxy: true }));
+
+    new cdk.CfnOutput(this, 'AskEndpoint', {
+      value: `${api.url}ask`,
+      description: 'NL query endpoint (POST {prompt})',
+    });
 
     this.apiEndpoint = api.url;
 
