@@ -6,6 +6,10 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import * as path from 'path';
@@ -292,6 +296,37 @@ export class PagilaStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'AskEndpoint', {
       value: `${api.url}ask`,
       description: 'NL query endpoint (POST {prompt})',
+    });
+
+    // ---- Static frontend: private S3 bucket served via CloudFront ----
+    const siteBucket = new s3.Bucket(this, 'PagilaSiteBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    const distribution = new cloudfront.Distribution(this, 'PagilaSiteDistribution', {
+      defaultRootObject: 'index.html',
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+    });
+
+    new s3deploy.BucketDeployment(this, 'PagilaSiteDeployment', {
+      destinationBucket: siteBucket,
+      distribution,
+      distributionPaths: ['/*'],
+      sources: [
+        s3deploy.Source.asset(path.join(__dirname, '..', '..', '..', 'frontend')),
+        s3deploy.Source.data('config.js', `window.PAGILA_API=${JSON.stringify(`${api.url}ask`)};`),
+      ],
+    });
+
+    new cdk.CfnOutput(this, 'SiteURL', {
+      value: `https://${distribution.distributionDomainName}`,
+      description: 'Pagila natural-language query frontend',
     });
 
     this.apiEndpoint = api.url;
