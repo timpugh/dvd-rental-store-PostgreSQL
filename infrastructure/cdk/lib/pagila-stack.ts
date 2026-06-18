@@ -152,7 +152,9 @@ export class PagilaStack extends cdk.Stack {
       cloudwatchLogsExports: ['postgresql'],
       storageEncrypted: true,
       deletionProtection: false,
-      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+      // Training database: destroy cleanly with no final snapshot to clean up
+      // (SNAPSHOT would leave an orphaned, billable cluster snapshot on teardown).
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const dbSecret = dbCluster.secret!;
