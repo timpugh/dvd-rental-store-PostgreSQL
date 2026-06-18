@@ -1,12 +1,13 @@
 // ---- pure: terminal-style table (psql-like) ----
 function formatTable(columns, rows) {
   if (!columns.length) return '(0 rows)';
+  const cell = (x) => (x == null ? '' : typeof x === 'object' ? JSON.stringify(x) : String(x));
   const widths = columns.map((c) =>
-    Math.max(c.length, ...rows.map((r) => String(r[c] ?? '').length), 0),
+    Math.max(c.length, ...rows.map((r) => cell(r[c]).length), 0),
   );
   const line = (cells) => cells.map((v, i) => String(v).padEnd(widths[i])).join(' | ');
   const sep = widths.map((w) => '-'.repeat(w)).join('-+-');
-  const body = rows.map((r) => line(columns.map((c) => (r[c] ?? '').toString())));
+  const body = rows.map((r) => line(columns.map((c) => cell(r[c]))));
   const count = `(${rows.length} row${rows.length === 1 ? '' : 's'})`;
   return [line(columns), sep, ...body, '', count].join('\n');
 }

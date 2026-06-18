@@ -17,3 +17,9 @@ test('pads columns to align', () => {
 test('handles no columns', () => {
   assert.equal(formatTable([], []), '(0 rows)');
 });
+
+test('stringifies object (JSONB) cells instead of [object Object]', () => {
+  const out = formatTable(['data'], [{ data: { Package: 'libpq', Size: 42 } }]);
+  assert.match(out, /\{"Package":"libpq","Size":42\}/);
+  assert.doesNotMatch(out, /\[object Object\]/);
+});

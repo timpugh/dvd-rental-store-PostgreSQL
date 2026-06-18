@@ -100,7 +100,7 @@ async function executeQuery(client: Client, query: string): Promise<QueryRespons
     const result = await client.query(trimmedQuery);
 
     // Handle SELECT queries - return rows
-    if (trimmedQuery.toUpperCase().startsWith('SELECT')) {
+    if (/^(SELECT|WITH)\b/i.test(trimmedQuery)) {
       return {
         success: true,
         rows: result.rows,
