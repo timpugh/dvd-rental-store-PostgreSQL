@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pagila — Ask the database</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Ask the Pagila database</h1>
+      <p>Type a question in plain English. It becomes a read-only SQL query, runs, and the results come back like a terminal — with an explanation.</p>
+    </header>
+
+    <section class="ask">
+      <textarea id="prompt" rows="3" placeholder="e.g. Which 5 customers have spent the most?"></textarea>
+      <button id="runBtn">Run</button>
+      <p class="hint">⌘/Ctrl + Enter to run. Try an example:</p>
+      <div id="examples" class="examples"></div>
+    </section>
+
+    <section id="output" class="output" style="display:none">
+      <h2>Your request</h2>
+      <p id="req" class="req"></p>
+      <h2>SQL</h2>
+      <pre id="sql" class="code"></pre>
+      <h2>Result</h2>
+      <pre id="table" class="terminal"></pre>
+      <h2>Explanation</h2>
+      <p id="explain" class="explain"></p>
+    </section>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
