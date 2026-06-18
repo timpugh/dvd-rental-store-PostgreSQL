@@ -1,0 +1,7 @@
+infrastructure/cdk/node_modules
+infrastructure/cdk/cdk.out
+infrastructure/cdk/dist
+.git
+docs
+pgadmin
+*.png
