@@ -15,14 +15,20 @@
     <section class="ask">
       <textarea id="prompt" rows="3" placeholder="e.g. Which 5 customers have spent the most?"></textarea>
       <button id="runBtn">Run</button>
-      <p class="hint">⌘/Ctrl + Enter to run. Try an example:</p>
-      <div id="examples" class="examples"></div>
+      <p class="hint">⌘/Ctrl + Enter to run.</p>
     </section>
 
-    <section class="schema">
-      <h2 class="schema-title">📋 Tables &amp; fields — what you can ask about</h2>
-      <div id="schema"></div>
-    </section>
+    <div class="workspace">
+      <div class="col">
+        <h2 class="col-title">Examples — click to fill the box</h2>
+        <div id="examples" class="examples"></div>
+      </div>
+      <div class="divider" aria-hidden="true"></div>
+      <div class="col">
+        <h2 class="col-title">📋 Tables &amp; fields — what you can ask about</h2>
+        <div id="schema"></div>
+      </div>
+    </div>
 
     <section id="output" class="output" style="display:none">
       <h2>Your request</h2>

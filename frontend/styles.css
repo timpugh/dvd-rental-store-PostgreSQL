@@ -15,10 +15,13 @@ textarea { width:100%; background:var(--panel); color:var(--ink); border:1px sol
 .chip:hover { border-color:var(--accent); }
 .chip-q { display:block; font-size:14px; }
 .chip-tag { display:block; color:var(--muted); font-size:12px; margin-top:4px; }
-.schema { max-width: 980px; margin: 24px auto 0; padding: 0 20px; }
-.schema-title { font-size: 14px; color: var(--accent); font-weight: 600; margin: 0 0 4px; }
-.schema h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 6px; }
-.schema-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.workspace { max-width: 980px; margin: 18px auto 0; padding: 0 20px; display: grid; grid-template-columns: 1fr 1px 1fr; gap: 22px; align-items: start; }
+.divider { width: 1px; align-self: stretch; background: #2c3a48; }
+.col { min-width: 0; }
+.col-title { font-size: 14px; color: var(--accent); font-weight: 600; margin: 0 0 10px; }
+#schema h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 6px; }
+.schema-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (max-width: 760px) { .workspace { grid-template-columns: 1fr; } .divider { display: none; } }
 .tbl { background: var(--panel); border: 1px solid #2c3a48; border-radius: 8px; padding: 8px 10px; }
 .tbl-name { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8f7c5; font-size: 13px; }
 .tbl-cols { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }

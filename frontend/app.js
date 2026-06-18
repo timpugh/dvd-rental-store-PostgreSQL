@@ -56,7 +56,7 @@ const SCHEMA = [
     ['city', 'city_id, city, country_id'],
     ['country', 'country_id, country'],
   ]],
-  ['Package metadata (JSONB)', [
+  ['PostgreSQL package data — a JSONB demo, not part of the rental store', [
     ['packages_apt_postgresql_org', "id, last_updated, aptdata (jsonb keys: Package, Version, Size…)"],
     ['packages_yum_postgresql_org', "id, last_updated, yumdata (jsonb keys: name, version, size…)"],
   ]],
