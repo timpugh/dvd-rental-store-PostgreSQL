@@ -11,6 +11,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cr from 'aws-cdk-lib/custom-resources';
+import * as ecrAssets from 'aws-cdk-lib/aws-ecr-assets';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
@@ -201,6 +202,10 @@ export class PagilaStack extends cdk.Stack {
     const seederFunction = new lambda.DockerImageFunction(this, 'PagilaSeeder', {
       code: lambda.DockerImageCode.fromImageAsset(repoRoot, {
         file: 'infrastructure/cdk/seeder/Dockerfile',
+        // Build the image for arm64 so it matches the ARM_64 Lambda below.
+        // (Without this the image is built for the host arch; an arm64 image on
+        // an x86_64 Lambda fails to exec -> ProcessSpawnFailed.)
+        platform: ecrAssets.Platform.LINUX_ARM64,
         exclude: [
           'infrastructure/cdk/node_modules',
           'infrastructure/cdk/cdk.out',
@@ -210,6 +215,7 @@ export class PagilaStack extends cdk.Stack {
           'pgadmin',
         ],
       }),
+      architecture: lambda.Architecture.ARM_64, // must match the image platform above
       timeout: cdk.Duration.minutes(15),
       memorySize: 2048,
       vpc,
