@@ -1,36 +1,55 @@
 # Pagila — AWS Serverless Training Edition
 
-A serverless deployment of the **Pagila** sample database (a DVD‑rental store
-schema) for practicing PostgreSQL on AWS at minimal cost.
+A serverless deployment of the **Pagila** sample database (a DVD-rental store
+schema) with a natural-language query front end, for practicing PostgreSQL on AWS
+at minimal cost.
 
-## Architecture (private / web‑only)
+## Architecture
 
 ![AWS Serverless Pagila Architecture Diagram](docs/pagila-serverless-architecture.png)
 
-- **Database:** Aurora PostgreSQL **Serverless v2** with scale‑to‑zero (auto‑pauses when idle), **private** — no public endpoint.
-- **Access:** **API Gateway → Lambda** only. You send SQL to an HTTPS endpoint; the Lambda runs it inside the VPC and returns JSON. There is **no direct psql** from a laptop (the DB is private by design).
-- **Credentials:** generated and stored in **Secrets Manager**; the Lambda reads them through a single‑AZ interface VPC endpoint (no NAT gateway).
-- **Seeding:** a one‑time **seeder Lambda** (CloudFormation custom resource) loads the schema + sample data on deploy — nothing to run by hand.
+- **Web app:** a static page (**S3 + CloudFront**) where you type a question in
+  plain English. It shows your request, the generated SQL, terminal-style
+  results, a plain-English explanation, and an always-visible list of the tables
+  and fields you can ask about.
+- **Natural language → SQL:** an **Ask Lambda** (outside the VPC) calls **Amazon
+  Bedrock** (Claude Haiku 4.5) to turn the question into a single **read-only**
+  `SELECT`/`WITH`, runs it, then asks Bedrock for a plain-English explanation of
+  the results. The generated SQL is guarded — read-only, single statement, with a
+  `LIMIT` enforced.
+- **Database:** Aurora PostgreSQL **Serverless v2** with scale-to-zero
+  (auto-pauses when idle), **private** — no public endpoint.
+- **In-VPC query path:** a **Query Lambda** (in the VPC) runs the SQL against
+  Aurora and reads credentials from **Secrets Manager** through a single-AZ
+  interface VPC endpoint (no NAT gateway). The Ask Lambda invokes it; it's also
+  exposed directly as `POST /query` for raw SQL.
+- **Seeding:** a one-time **container-image seeder** (a CloudFormation custom
+  resource running `psql` + `pg_restore`) loads the schema, the relational data,
+  and the two JSONB tables on deploy — nothing to run by hand, and it's
+  idempotent.
 - **IaC:** AWS CDK (TypeScript) in [infrastructure/cdk/](infrastructure/cdk/).
+  Teardown leaves nothing behind: `RemovalPolicy.DESTROY` (no final snapshot)
+  plus a customized bootstrap template that auto-expires build assets in S3/ECR.
 
-**Request flow:** `POST /query` → Lambda → (read secret via endpoint) → run SQL on Aurora → rows back as JSON.
+**Request flow:** load page (S3 / CloudFront) → `POST /ask` → Ask Lambda →
+Bedrock (question → SQL) → invoke the in-VPC Query Lambda → run SQL on Aurora →
+Bedrock (explain) → request, SQL, rows, and explanation back to the browser.
 
 ## Quick start
 
-Prereqs: an AWS account, AWS CLI configured, Node.js 18+, and the AWS CDK
-(`npx cdk`). See [infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md).
+Prereqs: an AWS account, AWS CLI configured, Node.js 18+, the AWS CDK
+(`npx cdk`), and **Amazon Bedrock model access enabled** for Claude Haiku 4.5 in
+your region. See [infrastructure/aws-setup-guide.md](infrastructure/aws-setup-guide.md).
 
 ```bash
 cd infrastructure/cdk
 npm install
-npx cdk bootstrap            # first time in the account/region only
+npx cdk bootstrap --template bootstrap-template.yaml   # first time per account/region
 npx cdk deploy               # creates everything AND seeds the database
 ```
 
-When it finishes, open the **`SiteURL`** output in a browser to ask questions in
-plain English (the page shows the generated SQL, terminal-style results, an
-explanation, and a collapsible list of tables/fields). Or query the database
-directly with the **`APIEndpoint`** output:
+When it finishes, open the **`SiteURL`** output in a browser and ask questions in
+plain English. Or query the database directly with the **`APIEndpoint`** output:
 
 ```bash
 API_ENDPOINT=<APIEndpoint output>   # e.g. https://xxxx.execute-api.us-east-1.amazonaws.com/prod/
@@ -39,10 +58,11 @@ curl -sS -X POST "${API_ENDPOINT}query" \
   -d '{"query":"SELECT title, rental_rate FROM film LIMIT 5;"}' | jq
 ```
 
-Smoke‑test the deployment:
+Smoke-test the deployment:
 
 ```bash
 API_ENDPOINT=<your APIEndpoint> python3 tests/integration-test.py
+ASK_ENDPOINT=<your AskEndpoint output> python3 tests/ask-smoke-test.py
 ```
 
 Tear everything down (stops all charges):
@@ -54,10 +74,11 @@ cd infrastructure/cdk && npx cdk destroy
 More detail in [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) and
 [USAGE_GUIDE.md](USAGE_GUIDE.md).
 
-> **Note on the JSONB sample data:** the relational Pagila data is loaded
-> automatically. The JSONB extras ship as `pg_restore` custom‑format backups
-> (`pagila-data-*-jsonb.backup`), which the seeder does not apply — those two
-> `jsonb` tables are created but left empty.
+> **JSONB sample data:** the two `jsonb` tables
+> (`packages_apt_postgresql_org`, `packages_yum_postgresql_org`) are PostgreSQL
+> package metadata — a JSONB demo, **not** part of the rental-store schema. The
+> seeder loads them on deploy (via `pg_restore` of the
+> `pagila-data-*-jsonb.backup` archives) alongside the relational data.
 
 ## Example query
 
@@ -77,7 +98,7 @@ ORDER BY title
 LIMIT 5;
 ```
 
-Full‑text search is built in (no `film_text` table needed):
+Full-text search is built in (no `film_text` table needed):
 
 ```sql
 SELECT * FROM film WHERE fulltext @@ to_tsquery('fate & india');
@@ -93,8 +114,8 @@ PostgreSQL 12+. Notable differences from Sakila:
 - `char(1)` true/false fields became real booleans
 - `last_update` columns are maintained by triggers
 - foreign keys added (and pointless `DEFAULT 0` on FKs removed)
-- PostgreSQL built‑in full‑text search (no `film_text` table)
-- `rewards_report` ported to a simple set‑returning function
+- PostgreSQL built-in full-text search (no `film_text` table)
+- `rewards_report` ported to a simple set-returning function
 - JSONB sample data added
 
 The `payment` table is partitioned by month. Pagila is made available under the
@@ -104,6 +125,6 @@ PostgreSQL license.
 
 - `pagila-schema.sql` — schema (tables, views, functions, triggers)
 - `pagila-schema-jsonb.sql` — the two JSONB tables
-- `pagila-insert-data.sql` — sample data as `INSERT`s (used by the seeder Lambda)
-- `pagila-data.sql` — same data using `COPY` (kept for reference / `psql` use)
-- `pagila-data-*-jsonb.backup` — JSONB data for `pg_restore` (not auto‑loaded)
+- `pagila-data.sql` — sample data using `COPY` (loaded by the seeder)
+- `pagila-insert-data.sql` — same data as `INSERT`s (kept for reference / `psql` use)
+- `pagila-data-*-jsonb.backup` — JSONB data for `pg_restore` (loaded by the seeder)

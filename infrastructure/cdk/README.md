@@ -1,6 +1,8 @@
 # Pagila AWS CDK Infrastructure
 
-TypeScript CDK app that deploys the **private, web-only** Pagila environment.
+TypeScript CDK app that deploys the **private** Pagila environment plus a
+natural-language query front end (a static web page → Amazon Bedrock → read-only
+SQL).
 
 ## What it creates
 
@@ -8,16 +10,23 @@ TypeScript CDK app that deploys the **private, web-only** Pagila environment.
 - **Aurora PostgreSQL Serverless v2** — `VER_16_6`, scale-to-zero
   (`serverlessV2MinCapacity: 0`), **not** publicly accessible.
 - **Secrets Manager interface VPC endpoint** — pinned to a single AZ so the
-  in-VPC Lambdas can read DB credentials without a NAT gateway.
+  in-VPC Lambda can read DB credentials without a NAT gateway.
 - **Query Lambda** (`lambda/query-handler.ts`) — bundled with esbuild
   (`NodejsFunction`), runs in the single pinned subnet, exposed via **API Gateway**
   `POST /query`.
-- **Seeder Lambda** (`lambda/seed-handler.ts`) — a CloudFormation custom resource
-  that loads the schema + `pagila-insert-data.sql` on deploy (idempotent).
+- **Ask Lambda** (`lambda/ask-handler.ts`) — **outside the VPC**; calls **Amazon
+  Bedrock** (Claude Haiku 4.5, see `bedrockModelId`) to turn a question into a
+  guarded read-only `SELECT`/`WITH` (`lambda/sql-guard.ts`), invokes the Query
+  Lambda to run it, then asks Bedrock to explain the results. Exposed via `POST /ask`.
+- **Container-image seeder** (`seeder/`, a `DockerImageFunction` on ARM64) — a
+  CloudFormation custom resource that runs `psql` + `pg_restore` to load the
+  schema, `pagila-data.sql`, and the two JSONB tables on deploy (idempotent).
+- **Static site** — an S3 bucket served through **CloudFront** (Origin Access
+  Control), with `frontend/` deployed and a generated `config.js` pointing at the
+  API. This is the `SiteURL` you open in a browser.
 
-Everything in the data path (both Lambdas + the endpoint) shares one AZ to avoid
-cross-AZ charges. Aurora's subnet group still spans both AZs because RDS requires
-it.
+The in-VPC data path (Query Lambda + endpoint) shares one AZ to avoid cross-AZ
+charges. Aurora's subnet group still spans both AZs because RDS requires it.
 
 ## Commands
 
@@ -54,15 +63,23 @@ Set in [cdk.json](cdk.json) or with `-c key=value`:
 | `dbMinCapacity` | `0`          | Serverless v2 min ACU (0 = auto-pause)   |
 | `dbMaxCapacity` | `2`          | Serverless v2 max ACU                    |
 | `environment`   | `training`   | name tag / secret name suffix            |
+| `bedrockModelId`| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock inference profile for `/ask` |
 
 ## Outputs
 
-`APIEndpoint` (use this to query — see the root [USAGE_GUIDE.md](../../USAGE_GUIDE.md)),
-`AuroraEndpoint` (private), and `DBSecretArn`.
+- `SiteURL` — the CloudFront URL of the natural-language query page (open this).
+- `AskEndpoint` — `POST /ask` (natural language → SQL → results + explanation).
+- `APIEndpoint` — base API URL; `POST /query` runs raw SQL (see the root
+  [USAGE_GUIDE.md](../../USAGE_GUIDE.md)).
+- `AuroraEndpoint` (private), `AuroraPort`, `DatabaseName`, `DBSecretArn`.
 
 ## Notes
 
-- The `/query` endpoint runs arbitrary SQL with no auth — fine for a personal
-  sandbox, not for production. Add an authorizer before exposing it.
-- JSONB sample data (`pagila-data-*-jsonb.backup`) is not loaded by the seeder;
-  those tables are created empty (they need `pg_restore`).
+- The `/ask` and `/query` endpoints have no auth — fine for a personal sandbox,
+  not for production. `/query` runs arbitrary SQL; `/ask` is constrained to
+  guarded read-only statements. Add an authorizer before exposing either.
+- Bedrock model access for Claude Haiku 4.5 must be enabled in the account/region,
+  and the model id must be an inference profile (default
+  `us.anthropic.claude-haiku-4-5-20251001-v1:0`).
+- The seeder loads the relational data **and** the two JSONB tables
+  (`pagila-data-*-jsonb.backup`, via `pg_restore`) on deploy.
