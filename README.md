@@ -1,4 +1,4 @@
-# Pagila — AWS Serverless Training Edition
+# Pagila — AWS Serverless Edition
 
 A serverless deployment of the **Pagila** sample database (a DVD-rental store
 schema) with a natural-language query front end, for using PostgreSQL on AWS
